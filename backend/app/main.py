@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from . import database
 from .auth.router import router as auth_router
 from .middleware.jwt_middleware import JWTMiddleware
@@ -10,7 +11,23 @@ from .middleware.jwt_middleware import JWTMiddleware
 # (Disabled because we use Alembic for migrations)
 # database.Base.metadata.create_all(bind=database.engine)
 
-app = FastAPI()
+app = FastAPI(
+    title="CLM Backend API",
+    description="Contract Lifecycle Management Platform API",
+    version="1.0.0"
+)
+
+# Enable CORS for Next.js frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Allows all origins for local dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register Client Portal Router
+app.include_router(client_router)
 
 origins = [
     "http://localhost:3000",
@@ -55,8 +72,7 @@ from sqlalchemy import text
 @app.get("/test-db")
 def test_db_connection(db: Session = Depends(database.get_db)):
     try:
-        # Try to execute a simple query to verify connection
         db.execute(text("SELECT 1"))
-        return {"status": "success", "message": "Successfully connected to the clmnew MySQL database!"}
+        return {"status": "success", "message": "Successfully connected to the clmnew database!"}
     except Exception as e:
         return {"status": "error", "message": f"Failed to connect: {str(e)}"}
