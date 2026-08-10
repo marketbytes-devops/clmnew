@@ -59,94 +59,25 @@ export const AppProvider = ({ children }) => {
     initializeApp();
   }, []);
 
-  // Fetch Requests & Compute KPIs from API Service
-  const loadRequestsData = useCallback(async () => {
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+
+  // Example of centralizing state logic for the Admin
+  const fetchAdminData = async () => {
     try {
-      const res = await apiService.getContractRequests();
-      if (res) {
-        setContractRequests(res.data || res);
-
-        // Compute corresponding metrics
-        const metricsRes = await apiService.getRequestMetrics();
-        if (metricsRes) {
-          setRequestMetrics(metricsRes.data || metricsRes);
-        }
-
-        const notifsRes = await apiService.getNotifications();
-        if (notifsRes) setNotifications(notifsRes.data || notifsRes);
-      }
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const { APIService } = await import('../service/api_service');
+      const usersData = await APIService.getAllUsers(token);
+      const rolesData = await APIService.getAllRoles(token);
+      setUsers(usersData);
+      setRoles(rolesData);
     } catch (err) {
-      console.error('Failed to load contract requests:', err);
-      setError('Could not fetch contract requests.');
-    }
-  }, []);
-
-  // Fetch Managers and Leads for Step 4 Routing
-  const loadAssigneeOptions = useCallback(async () => {
-    try {
-      const managersRes = await apiService.getContractManagers();
-      const leadsRes = await apiService.getDepartmentLeads();
-      if (managersRes?.data) setContractManagers(managersRes.data);
-      if (leadsRes?.data) setDepartmentLeads(leadsRes.data);
-    } catch (err) {
-      console.error('Failed to load assignee dropdowns:', err);
-    }
-  }, []);
-
-  // Submit new request from 4-Step Wizard & dynamically update state
-  const submitNewRequest = async (wizardFormValue, isDraft = false) => {
-    try {
-      setLoading(true);
-      const payload = { ...wizardFormValue, isDraft, requesterName: user?.name || 'Sales Rep' };
-      const response = await apiService.createContractRequest(payload);
-
-      if (response) {
-        const newReq = response.data || response;
-        // Prepend newly created contract to state for instant interactive demo
-        const updatedList = [newReq, ...contractRequests];
-        setContractRequests(updatedList);
-
-        // Recalculate metrics in real-time
-        const updatedMetrics = await apiService.getRequestMetrics(updatedList);
-        if (updatedMetrics) {
-          setRequestMetrics(updatedMetrics.data || updatedMetrics);
-        }
-
-        // Refresh notifications from DB
-        const notifsRes = await apiService.getNotifications();
-        if (notifsRes) setNotifications(notifsRes.data || notifsRes);
-
-        return { success: true, trackingId: newReq.requestId, request: newReq };
-      }
-      return { success: false, message: 'Failed to generate contract request.' };
-    } catch (err) {
-      console.error('Error submitting request:', err);
-      return { success: false, message: err?.message || 'Submission failed.' };
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch admin data", err);
     }
   };
 
-  // Trigger dynamic Gemini AI Scope Extraction (Step 3)
-  const triggerAIParsing = async (fileObj) => {
-    setAiParsingState({ loading: true, data: null, error: null });
-    try {
-      const response = await apiService.analyzeDocumentAI(fileObj);
-      if (response?.data) {
-        setAiParsingState({ loading: false, data: response.data, error: null });
-        return { success: true, data: response.data };
-      }
-    } catch (err) {
-      setAiParsingState({ loading: false, data: null, error: 'AI Extractor encountered an issue.' });
-      return { success: false, error: err?.message };
-    }
-  };
-
-  const clearAIParsingState = () => {
-    setAiParsingState({ loading: false, data: null, error: null });
-  };
-
-  // Auth helper methods
   const login = (userData, token) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
@@ -160,6 +91,59 @@ export const AppProvider = ({ children }) => {
     localStorage.removeItem('user');
     setUser(null);
     setIsAuthenticated(false);
+    setUsers([]);
+    setRoles([]);
+  };
+
+  const [contracts, setContracts] = useState([]);
+
+  // Fetch contracts from the backend
+  const fetchContracts = async () => {
+    try {
+      const { APIService } = await import('../service/api_service');
+      const data = await APIService.getContracts();
+      setContracts(data);
+    } catch (err) {
+      console.error("Failed to fetch contracts", err);
+    }
+  };
+
+  // Add a new contract
+  const addContract = async (contractData) => {
+    try {
+      const { APIService } = await import('../service/api_service');
+      const newContract = await APIService.createContract(contractData);
+      setContracts(prev => [newContract, ...prev]);
+    } catch (err) {
+      console.error("Failed to create contract", err);
+      throw err; // Re-throw to handle in UI
+    }
+  };
+
+  const [requests, setRequests] = useState([]);
+
+  // Fetch requests from the backend
+  const fetchRequests = async (status = null) => {
+    try {
+      const { APIService } = await import('../service/api_service');
+      const data = await APIService.getRequests(status);
+      setRequests(data);
+    } catch (err) {
+      console.error("Failed to fetch requests", err);
+    }
+  };
+
+  // Add a new request
+  const addRequest = async (requestData) => {
+    try {
+      const { APIService } = await import('../service/api_service');
+      const newRequest = await APIService.createRequest(requestData);
+      setRequests(prev => [newRequest, ...prev]);
+      return newRequest;
+    } catch (err) {
+      console.error("Failed to create request", err);
+      throw err;
+    }
   };
 
   const value = {
@@ -170,19 +154,15 @@ export const AppProvider = ({ children }) => {
     error,
     setError,
     isAuthenticated,
-    // Requester domain state
-    contractRequests,
-    requestMetrics,
-    contractManagers,
-    departmentLeads,
-    aiParsingState,
-    notifications,
-    // Requester actions
-    loadRequestsData,
-    submitNewRequest,
-    triggerAIParsing,
-    clearAIParsingState,
-    // Auth actions
+    users,
+    roles,
+    contracts,
+    requests,
+    fetchAdminData,
+    fetchContracts,
+    addContract,
+    fetchRequests,
+    addRequest,
     login,
     logout,
   };
