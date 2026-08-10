@@ -8,7 +8,7 @@ import {
   UserCheck, ShieldCheck, Lock, ChevronRight, CornerUpLeft, RefreshCw, Search
 } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
-import { APIService } from '../../../service/api_service';
+import { APIService } from '../../../service/apiService';
 
 const DEMO_REVIEW_CONTRACT = {
   id: 1,

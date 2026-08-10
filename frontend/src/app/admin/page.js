@@ -4,7 +4,7 @@ import KPICard from "../../common/cards/KPICard";
 import BarChartWidget from "../../common/charts/BarChartWidget";
 import PieChartWidget from "../../common/charts/PieChartWidget";
 import { FileText, Clock, Edit3, CheckCircle, FileSignature, AlertTriangle, RefreshCw } from "lucide-react";
-import { APIService } from "../../service/api_service";
+import { APIService } from "../../service/apiService";
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);

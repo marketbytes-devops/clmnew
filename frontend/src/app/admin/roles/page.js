@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { APIService } from '@/service/api_service';
+import { APIService } from '@/service/apiService';
 import { ShieldAlert, Plus, Edit2, Trash2 } from 'lucide-react';
 
 export default function RolesPage() {

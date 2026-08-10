@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { APIService } from '@/service/api_service';
+import { APIService } from '@/service/apiService';
 import { BarChart3, FileText, DollarSign, Clock, Users, Building2, TrendingUp, RefreshCw } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,

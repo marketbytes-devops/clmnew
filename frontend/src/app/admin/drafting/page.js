@@ -8,7 +8,7 @@ import {
   UserCheck, XCircle, Search, Filter, ArrowLeft, Bot, FileText, ChevronRight, Shield, Printer
 } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
-import { APIService } from '../../../service/api_service';
+import { APIService } from '../../../service/apiService';
 
 export default function DraftingWorkspacePage() {
   const router = useRouter();
