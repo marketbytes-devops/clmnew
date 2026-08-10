@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { APIService } from '@/service/api_service';
+import { APIService } from '@/service/apiService';
 import { Save, ArrowLeft, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 

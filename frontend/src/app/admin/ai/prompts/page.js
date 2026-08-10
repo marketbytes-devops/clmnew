@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { APIService } from '@/service/api_service';
+import { APIService } from '@/service/apiService';
 import { BookOpen, Plus, Save } from 'lucide-react';
 
 export default function AIPromptsPage() {

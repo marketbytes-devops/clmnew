@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Building2, Users, FileText, ChevronRight, X, RefreshCw } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
 import Link from 'next/link';
-import { APIService } from '../../../service/api_service';
+import { APIService } from '../../../service/apiService';
 
 export default function DepartmentsList() {
   const [departments, setDepartments] = useState([]);

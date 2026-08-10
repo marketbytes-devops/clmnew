@@ -1305,7 +1305,7 @@ export default function RequestWizard() {
                 </>
               )}
 
-              {aiParsingState.data && (
+              {aiParsingState?.data && (
                 <div className="p-4 rounded-2xl bg-[#dcf0d2] border-2 border-[#6f985c] text-[#213b15] space-y-2 animate-fadeIn shadow-2xs">
                   <p className="font-black text-[#28461b]">✓ AI Document Extractor Success</p>
                   <p className="text-[11px] font-bold leading-relaxed text-[#355824]">
