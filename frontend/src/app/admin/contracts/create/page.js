@@ -8,7 +8,7 @@ import {
   HelpCircle, Check, Eye, GitCompare, Edit3, Shield, Info, Layers, Lock, UserCheck, Briefcase, Award, GraduationCap, PanelRightClose, PanelRightOpen, X, Printer
 } from 'lucide-react';
 import PrimaryButton from '../../../../common/buttons/PrimaryButton';
-import { APIService } from '../../../../service/api_service';
+import { APIService } from '../../../../service/apiService';
 import { useAppContext } from '../../../../context/appContext';
 
 const CONTRACT_TAXONOMY = {

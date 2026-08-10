@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Users, Mail, Phone, Building2, Briefcase, ChevronLeft, Calendar, FileText, Settings, ShieldCheck, DollarSign, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { APIService } from '../../../../service/api_service';
+import { APIService } from '../../../../service/apiService';
 
 export default function DepartmentDetails() {
   const params = useParams();

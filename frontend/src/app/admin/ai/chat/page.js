@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { APIService } from '@/service/api_service';
+import { APIService } from '@/service/apiService';
 import { Send, User, Bot, Loader2 } from 'lucide-react';
 
 export default function AIChatPage() {

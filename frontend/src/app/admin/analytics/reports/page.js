@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { APIService } from '@/service/api_service';
+import { APIService } from '@/service/apiService';
 import { Download, Building2, Users, ShieldAlert, RefreshCw } from 'lucide-react';
 
 export default function AnalyticsReportsPage() {

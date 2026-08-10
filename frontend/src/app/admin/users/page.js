@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, Upload, MoreVertical, Plus, UserPlus, Shield, X, RefreshCw, Trash2, Power } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
-import { APIService } from '../../../service/api_service';
+import { APIService } from '../../../service/apiService';
 
 export default function UsersList() {
   const [users, setUsers] = useState([]);
