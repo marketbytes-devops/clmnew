@@ -1,34 +1,62 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import * as apiService from '../service/apiService';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  // Auth & Session States
+  const [user, setUser] = useState({
+    name: 'John Sales (Account Executive)',
+    email: 'john.sales@marketbytes.com',
+    department: 'Sales',
+    role: 'Requester'
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
-  // Initialize state from local storage or verify existing tokens
+  // ==========================================
+  // Stage 1: Requester Portal States
+  // ==========================================
+  const [contractRequests, setContractRequests] = useState([]);
+  const [requestMetrics, setRequestMetrics] = useState({
+    totalActive: 0,
+    pendingDependencies: 0,
+    inReview: 0,
+    approved: 0
+  });
+  const [contractManagers, setContractManagers] = useState([]);
+  const [departmentLeads, setDepartmentLeads] = useState({});
+  const [aiParsingState, setAiParsingState] = useState({ loading: false, data: null, error: null });
+  const [notifications, setNotifications] = useState([]);
+
+  // Initialize Auth & Load initial Stage 1 data
   useEffect(() => {
-    const initializeAuth = () => {
+    const initializeApp = async () => {
+      setLoading(true);
       try {
         const token = localStorage.getItem('token');
         const storedUser = localStorage.getItem('user');
-        
+
         if (token && storedUser) {
           setUser(JSON.parse(storedUser));
           setIsAuthenticated(true);
         }
+
+        // Fetch initial Contract Requests & Metrics for Requester Dashboard
+        await loadRequestsData();
+        await loadAssigneeOptions();
+
       } catch (err) {
-        console.error('Error restoring session from localStorage:', err);
+        console.error('Error initializing AppContext:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    initializeAuth();
+    initializeApp();
   }, []);
 
   const [users, setUsers] = useState([]);
