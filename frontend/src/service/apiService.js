@@ -64,7 +64,14 @@ export const analyzeDocumentAI = async (fileOrName, fileTextContent = "") => {
     fileToUpload = new File([content], fileOrName, { type: 'text/plain' });
   } else if (fileOrName && !(fileOrName instanceof File) && !(fileOrName instanceof Blob)) {
     // If it's a simulated plain mock object from the wizard's demo badge
-    const content = `Client: Hooli Inc\nObjective: Build a new contract portal\nDeliverables:\n- UI Wireframing & Screen layouts\n- Core web application build\n- Security audit certification`;
+    let content = `Client: Hooli Inc\nObjective: Build a new contract portal\nDeliverables:\n- UI Wireframing & Screen layouts\n- Core web application build\n- Security audit certification`;
+    
+    if (fileOrName.name && fileOrName.name.includes("AcmeCorp")) {
+      content = `Client: Acme Corp\nObjective: Build a secure billing gateway and vendor onboarding partner system.\nDeliverables:\n- Design database layout and encryption storage\n- API integration for bank merchant accounts\n- Security and compliance certification`;
+    } else if (fileOrName.name && fileOrName.name.includes("YoKoBaine")) {
+      content = `Client: YoKoBaine Retail\nObjective: Build an online E-Commerce catalog portal and Android mobile application.\nDeliverables:\n- UI wireframing and screen designs in Figma\n- E-Commerce storefront frontend React pages\n- Backend inventory and payment API integration`;
+    }
+    
     fileToUpload = new File([content], fileOrName.name || "simulated_file.txt", { type: 'text/plain' });
   }
 
@@ -72,6 +79,11 @@ export const analyzeDocumentAI = async (fileOrName, fileTextContent = "") => {
   formData.append('file', fileToUpload);
 
   return await post('/api/ai/parse-document', formData);
+};
+
+// Fetch dynamic suggestions from AI Copilot
+export const getCopilotSuggestions = async (payload) => {
+  return await post('/api/ai/copilot-suggestions', payload);
 };
 
 // Fetch lists of available Contract Managers and Department Leads
