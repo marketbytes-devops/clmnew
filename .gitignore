@@ -4,9 +4,24 @@ node_modules/
 
 # Python
 venv/
+.venv/
+env/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 
 # Environment Variables
 .env
 .env.local
+.env.*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
