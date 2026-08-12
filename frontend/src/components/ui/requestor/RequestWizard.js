@@ -14,6 +14,9 @@ export default function RequestWizard() {
     submitNewRequest,
     triggerAIParsing,
     aiParsingState,
+    copilotSuggestions,
+    copilotLoading,
+    fetchCopilotSuggestions,
     contractRequests,
     loading
   } = useAppContext();
@@ -127,6 +130,46 @@ export default function RequestWizard() {
       setFormData(prev => ({ ...prev, dependencyMatrix: updatedMatrix }));
     }
   }, [formData.selectedDependencies, departmentLeads]);
+
+  useEffect(() => {
+    if (currentStep !== 3) return;
+
+    const payload = {
+      client_name: formData.clientName,
+      contract_category: formData.contractCategory,
+      contract_type: formData.contractType,
+      estimated_value: parseFloat(formData.estimatedValue) || 0.0,
+      scope_summary: formData.scopeSummary
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchCopilotSuggestions(payload);
+    }, 1000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [
+    formData.clientName,
+    formData.contractCategory,
+    formData.contractType,
+    formData.estimatedValue,
+    formData.scopeSummary,
+    currentStep
+  ]);
+
+  const handleApplyAICopilotSuggestions = () => {
+    if (!copilotSuggestions) return;
+    
+    // Apply baseline deliverables and dependencies suggested by Gemini
+    setFormData(prev => ({
+      ...prev,
+      deliverables: copilotSuggestions.deliverables && copilotSuggestions.deliverables.length > 0 
+        ? copilotSuggestions.deliverables 
+        : prev.deliverables,
+      selectedDependencies: copilotSuggestions.suggestedDependencies && copilotSuggestions.suggestedDependencies.length > 0
+        ? copilotSuggestions.suggestedDependencies
+        : prev.selectedDependencies
+    }));
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => {
@@ -1220,32 +1263,54 @@ export default function RequestWizard() {
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-2xl bg-[#f2f8ef] border border-[#bcd3af] text-[#263c1c] space-y-2">
-                <p className="font-black text-[#385329] text-sm">Historical Memory Suggestion:</p>
-                <p className="leading-relaxed font-semibold text-xs text-[#4b633b]">
-                  "For similar E-Commerce agreements completed in 2025–2026 (e.g., <i>Project YoKoBaine Phase 1</i>), average UI design estimation was <b>45 hours</b> and Backend integration averaged <b>110 hours</b>."
-                </p>
-              </div>
+              {copilotLoading ? (
+                <div className="space-y-4 animate-pulse">
+                  <div className="p-4 rounded-2xl bg-[#edf4ea] border border-[#d2dec8] space-y-3">
+                    <div className="h-4 bg-[#d5e5cf] rounded-md w-1/3"></div>
+                    <div className="h-3 bg-[#e2ebe0] rounded-md w-full"></div>
+                    <div className="h-3 bg-[#e2ebe0] rounded-md w-5/6"></div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#edf4ea] border border-[#d2dec8] space-y-3">
+                    <div className="h-4 bg-[#d5e5cf] rounded-md w-1/2"></div>
+                    <div className="h-3 bg-[#e2ebe0] rounded-md w-full"></div>
+                    <div className="h-9 bg-[#d5e5cf] rounded-xl w-full mt-2"></div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 rounded-2xl bg-[#f2f8ef] border border-[#bcd3af] text-[#263c1c] space-y-2">
+                    <p className="font-black text-[#385329] text-sm">Historical Memory Suggestion:</p>
+                    <p 
+                      className="leading-relaxed font-semibold text-xs text-[#4b633b]"
+                      dangerouslySetInnerHTML={{ 
+                        __html: copilotSuggestions?.historicalMemory || "For similar E-Commerce agreements completed in 2025–2026 (e.g., <i>Project YoKoBaine Phase 1</i>), average UI design estimation was <b>45 hours</b> and Backend integration averaged <b>110 hours</b>." 
+                      }} 
+                    />
+                  </div>
 
-              <div className="p-4 rounded-2xl bg-[#f7fbf6] border border-[#cbdcbe] space-y-3">
-                <p className="font-black text-[#1c2918]">Recommended Next Action:</p>
-                <p className="text-[#55694a] font-semibold">
-                  Click below to apply baseline deliverables and pre-select UI/UX and Engineering dependency teams.
-                </p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleSimulatedAIFileDrop(null, "Project_YoKoBaine_Baseline.docx")}
-                  className="w-full text-xs py-3 bg-[#4f6e43] hover:bg-[#3d5733] font-black shadow-md shadow-[#4f6e43]/20"
-                >
-                  Apply AI Baseline Estimates
-                </Button>
-              </div>
+                  <div className="p-4 rounded-2xl bg-[#f7fbf6] border border-[#cbdcbe] space-y-3">
+                    <p className="font-black text-[#1c2918]">Recommended Next Action:</p>
+                    <p className="text-[#55694a] font-semibold">
+                      {copilotSuggestions?.recommendedAction || "Click below to apply baseline deliverables and pre-select UI/UX and Engineering dependency teams."}
+                    </p>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={copilotSuggestions ? handleApplyAICopilotSuggestions : () => handleSimulatedAIFileDrop(null, "Project_YoKoBaine_Baseline.docx")}
+                      className="w-full text-xs py-3 bg-[#4f6e43] hover:bg-[#3d5733] font-black shadow-md shadow-[#4f6e43]/20"
+                    >
+                      {copilotSuggestions ? `Apply AI Baseline Estimates (${copilotSuggestions.deliverables?.length || 0} items)` : "Apply AI Baseline Estimates"}
+                    </Button>
+                  </div>
+                </>
+              )}
 
               {aiParsingState?.data && (
                 <div className="p-4 rounded-2xl bg-[#dcf0d2] border-2 border-[#6f985c] text-[#213b15] space-y-2 animate-fadeIn shadow-2xs">
                   <p className="font-black text-[#28461b]">✓ AI Document Extractor Success</p>
-                  <p className="text-[11px] font-bold leading-relaxed text-[#355824]">Auto-filled Scope Summary with 3 key milestones and flagged Net-45 payment terms.</p>
+                  <p className="text-[11px] font-bold leading-relaxed text-[#355824]">
+                    Auto-filled Scope Summary with {aiParsingState.data.deliverables?.length || 0} key milestones, pre-selected dependencies, and flagged terms.
+                  </p>
                 </div>
               )}
             </div>

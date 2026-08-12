@@ -59,69 +59,51 @@ export const getContractRequests = async () => {
 };
 
 export const getNotifications = async () => {
-  try {
-    const notifications = await get('/api/contracts/notifications');
-    return { data: notifications };
-  } catch (err) {
-    return { data: [] };
-  }
+  const notifications = await get('/api/contracts/notifications');
+  return { data: notifications };
 };
 
+// Fetch quick metrics for Dashboard header KPIs
 export const getRequestMetrics = async () => {
-  try {
-    return await get('/api/contracts/metrics');
-  } catch (err) {
-    return { totalActive: 3, pendingDependencies: 1, inReview: 2, approved: 5 };
-  }
+  return await get('/api/contracts/metrics');
 };
 
+// Create / submit a new contract request from the 4-Step Wizard
 export const createContractRequest = async (requestPayload) => {
-  try {
-    return await post('/api/contracts/requests', requestPayload);
-  } catch (err) {
-    console.warn('Backend server offline, creating local contract request');
-    const mockId = `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    return {
-      id: Date.now(),
-      requestId: mockId,
-      trackingId: mockId,
-      ...requestPayload,
-      currentStatus: requestPayload.isDraft ? 'Draft' : 'Submitted / Pending Assignment',
-      createdAt: new Date().toISOString()
-    };
-  }
+  return await post('/api/contracts/requests', requestPayload);
 };
 
+// Real AI Document Parser for Step 3 of the Wizard (Calls backend Gemini API)
 export const analyzeDocumentAI = async (fileOrName, fileTextContent = "") => {
-  try {
-    let fileToUpload = fileOrName;
-    if (typeof fileOrName === 'string') {
-      const content = fileTextContent || `Objective: Build a new contract portal\nClient: Hooli Inc\nDeliverables:\n- Setup project structure\n- Create Next.js pages`;
-      fileToUpload = new File([content], fileOrName, { type: 'text/plain' });
-    } else if (fileOrName && !(fileOrName instanceof File) && !(fileOrName instanceof Blob)) {
-      const content = `Client: Hooli Inc\nObjective: Build a new contract portal\nDeliverables:\n- UI Wireframing & Screen layouts\n- Core web application build\n- Security audit certification`;
-      fileToUpload = new File([content], fileOrName.name || "simulated_file.txt", { type: 'text/plain' });
+  let fileToUpload = fileOrName;
+  if (typeof fileOrName === 'string') {
+    const content = fileTextContent || `Objective: Build a new contract portal\nClient: Hooli Inc\nDeliverables:\n- Setup project structure\n- Create Next.js pages`;
+    fileToUpload = new File([content], fileOrName, { type: 'text/plain' });
+  } else if (fileOrName && !(fileOrName instanceof File) && !(fileOrName instanceof Blob)) {
+    // If it's a simulated plain mock object from the wizard's demo badge
+    let content = `Client: Hooli Inc\nObjective: Build a new contract portal\nDeliverables:\n- UI Wireframing & Screen layouts\n- Core web application build\n- Security audit certification`;
+
+    if (fileOrName.name && fileOrName.name.includes("AcmeCorp")) {
+      content = `Client: Acme Corp\nObjective: Build a secure billing gateway and vendor onboarding partner system.\nDeliverables:\n- Design database layout and encryption storage\n- API integration for bank merchant accounts\n- Security and compliance certification`;
+    } else if (fileOrName.name && fileOrName.name.includes("YoKoBaine")) {
+      content = `Client: YoKoBaine Retail\nObjective: Build an online E-Commerce catalog portal and Android mobile application.\nDeliverables:\n- UI wireframing and screen designs in Figma\n- E-Commerce storefront frontend React pages\n- Backend inventory and payment API integration`;
     }
 
-    const formData = new FormData();
-    formData.append('file', fileToUpload);
-
-    return await post('/api/ai/parse-document', formData);
-  } catch (err) {
-    console.warn('Backend AI offline, returning simulated AI analysis result');
-    return {
-      scopeSummary: "Auto-extracted Scope: Comprehensive development deliverables and technical SLAs.",
-      deliverables: [
-        { name: "Frontend UI & Next.js Pages", description: "Design responsive views and wizard flows", owner: "Lead Engineer" },
-        { name: "Backend REST API Integration", description: "Implement API service endpoints and data models", owner: "Backend Engineer" }
-      ],
-      suggestedDependencies: ["Legal Review", "Security Audit"],
-      customClientTerms: "Standard Net-30 Payment Terms",
-      clientName: typeof fileOrName === 'string' ? fileOrName : fileOrName?.name || "Acme Corp (AI Extracted)"
-    };
+    fileToUpload = new File([content], fileOrName.name || "simulated_file.txt", { type: 'text/plain' });
   }
+
+  const formData = new FormData();
+  formData.append('file', fileToUpload);
+
+  return await post('/api/ai/parse-document', formData);
 };
 
+// Fetch dynamic suggestions from AI Copilot
+export const getCopilotSuggestions = async (payload) => {
+  return await post('/api/ai/copilot-suggestions', payload);
+};
+
+// Fetch lists of available Contract Managers and Department Leads
 export const getContractManagers = async () => {
   try {
     const managers = await get('/api/contracts/managers');
@@ -194,6 +176,16 @@ export const APIService = {
     return res.json();
   },
 
+  updateUser: async (id, userData) => {
+    const res = await fetchWithTimeout(`${BASE_URL}/admin/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    if (!res.ok) throw new Error('Failed to update user');
+    return res.json();
+  },
+
   deleteUser: async (id) => {
     const res = await fetchWithTimeout(`${BASE_URL}/admin/users/${id}`, {
       method: 'DELETE'
@@ -223,7 +215,7 @@ export const APIService = {
     if (!res.ok) throw new Error('Failed to fetch roles');
     return res.json();
   },
-  
+
   createRole: async (roleData) => {
     const res = await fetchWithTimeout(`${BASE_URL}/admin/roles`, {
       method: 'POST',
@@ -233,7 +225,7 @@ export const APIService = {
     if (!res.ok) throw new Error('Failed to create role');
     return res.json();
   },
-  
+
   updateRole: async (id, roleData) => {
     const res = await fetchWithTimeout(`${BASE_URL}/admin/roles/${id}`, {
       method: 'PUT',
@@ -243,7 +235,7 @@ export const APIService = {
     if (!res.ok) throw new Error('Failed to update role');
     return res.json();
   },
-  
+
   deleteRole: async (id) => {
     const res = await fetchWithTimeout(`${BASE_URL}/admin/roles/${id}`, {
       method: 'DELETE'
@@ -355,19 +347,19 @@ export const APIService = {
     if (!res.ok) throw new Error('Failed to fetch analytics dashboard');
     return res.json();
   },
-  
+
   getAnalyticsTrends: async () => {
     const res = await fetchWithTimeout(`${BASE_URL}/analytics/trends`);
     if (!res.ok) throw new Error('Failed to fetch analytics trends');
     return res.json();
   },
-  
+
   getAnalyticsDepartments: async () => {
     const res = await fetchWithTimeout(`${BASE_URL}/analytics/departments`);
     if (!res.ok) throw new Error('Failed to fetch department analytics');
     return res.json();
   },
-  
+
   getAnalyticsPerformance: async () => {
     const res = await fetchWithTimeout(`${BASE_URL}/analytics/performance`);
     if (!res.ok) throw new Error('Failed to fetch performance analytics');

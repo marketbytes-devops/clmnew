@@ -48,7 +48,7 @@ export default function Sidebar() {
     },
     { 
       name: 'Profile', 
-      path: '/requestor/settings', 
+      path: '/requestor/profile', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -82,7 +82,9 @@ export default function Sidebar() {
           Main Menu
         </p>
         {navItems.map((item) => {
-          const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
+          const isActive = item.path === '/requestor'
+            ? pathname === '/requestor'
+            : (pathname === item.path || pathname.startsWith(item.path + '/'));
           
           return (
             <Link 

@@ -5,13 +5,70 @@ import * as apiService from '../service/apiService';
 
 const AppContext = createContext();
 
-export const AppProvider = ({ children }) => {
-  // Auth & Session States
-  const [user, setUser] = useState({
-    name: 'John Sales (Account Executive)',
+export const MOCK_USERS = [
+  {
+    id: 101,
+    name: 'John Sales',
     email: 'john.sales@marketbytes.com',
     department: 'Sales',
-    role: 'Requester'
+    role: 'Requester',
+    title: 'Account Executive'
+  },
+  {
+    id: 102,
+    name: 'Alex Miller',
+    email: 'alex.miller@marketbytes.com',
+    department: 'Legal Operations',
+    role: 'Contract Manager',
+    title: 'Contract Specialist'
+  },
+  {
+    id: 103,
+    name: 'Sarah Jenkins',
+    email: 'sarah.jenkins@marketbytes.com',
+    department: 'Finance',
+    role: 'Reviewer',
+    title: 'Finance Director'
+  },
+  {
+    id: 104,
+    name: 'Elena Rostova',
+    email: 'elena.rostova@marketbytes.com',
+    department: 'Legal',
+    role: 'Reviewer',
+    title: 'General Counsel'
+  },
+  {
+    id: 1,
+    name: 'Admin User',
+    email: 'admin@marketbytes.com',
+    department: 'Operations',
+    role: 'Admin',
+    title: 'Super Admin'
+  }
+];
+
+export const AppProvider = ({ children }) => {
+  // Auth & Session States
+  const [user, setUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    return {
+      id: 101,
+      name: 'John Sales',
+      email: 'john.sales@marketbytes.com',
+      department: 'Sales',
+      role: 'Requester',
+      title: 'Account Executive'
+    };
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,6 +88,8 @@ export const AppProvider = ({ children }) => {
   const [departmentLeads, setDepartmentLeads] = useState({});
   const [aiParsingState, setAiParsingState] = useState({ loading: false, data: null, error: null });
   const [notifications, setNotifications] = useState([]);
+  const [copilotSuggestions, setCopilotSuggestions] = useState(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
 
   const loadRequestsData = useCallback(async () => {
     try {
@@ -106,6 +165,26 @@ export const AppProvider = ({ children }) => {
       console.error('Error in AI parsing:', err);
       setAiParsingState({ loading: false, data: null, error: err.message });
       return { success: false, error: err.message };
+    }
+  };
+
+  const clearAIParsingState = () => {
+    setAiParsingState({ loading: false, data: null, error: null });
+  };
+
+  const fetchCopilotSuggestions = async (formPayload) => {
+    setCopilotLoading(true);
+    try {
+      const response = await apiService.getCopilotSuggestions(formPayload);
+      if (response) {
+        setCopilotSuggestions(response);
+        return { success: true, data: response };
+      }
+    } catch (err) {
+      console.error('Error fetching copilot suggestions:', err);
+      return { success: false, error: err?.message };
+    } finally {
+      setCopilotLoading(false);
     }
   };
 
@@ -235,6 +314,17 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const switchUserRole = (userId) => {
+    const selected = MOCK_USERS.find(u => u.id === parseInt(userId));
+    if (selected) {
+      localStorage.setItem('user', JSON.stringify(selected));
+      setUser(selected);
+      setIsAuthenticated(true);
+      return selected;
+    }
+    return null;
+  };
+
   const value = {
     user,
     setUser,
@@ -255,6 +345,12 @@ export const AppProvider = ({ children }) => {
     setAiParsingState,
     notifications,
     setNotifications,
+    copilotSuggestions,
+    setCopilotSuggestions,
+    copilotLoading,
+    setCopilotLoading,
+    clearAIParsingState,
+    fetchCopilotSuggestions,
     loadRequestsData,
     loadAssigneeOptions,
     submitNewRequest,
@@ -270,6 +366,8 @@ export const AppProvider = ({ children }) => {
     addRequest,
     login,
     logout,
+    switchUserRole,
+    MOCK_USERS
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
