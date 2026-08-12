@@ -6,11 +6,7 @@ from sqlalchemy import text
 
 from app import database
 from app.models import user, contract, request
-from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests
-
-# Create tables if they don't exist yet
-# (Disabled because we use Alembic for migrations)
-# database.Base.metadata.create_all(bind=database.engine)
+from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests, client, dependencies
 
 app = FastAPI(
     title="CLM Backend API",
@@ -18,38 +14,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for Next.js frontend
+# Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allows all origins for local dev
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Register Client Portal Router
-app.include_router(client_router)
-
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(title="CLM API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,6 +33,8 @@ app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
 app.include_router(repository.router, prefix="/api/v1/repository", tags=["repository"])
 app.include_router(requests.router, prefix="/api/v1/requests", tags=["requests"])
+app.include_router(client.router)
+app.include_router(dependencies.router, prefix="/api/v1")
 
 @app.get("/", response_class=HTMLResponse)
 def root():
@@ -94,4 +64,4 @@ def test_db_connection(db: Session = Depends(database.get_db)):
         db.execute(text("SELECT 1"))
         return {"status": "success", "message": "Successfully connected to the clmnew database!"}
     except Exception as e:
-        return {"status": "error", "message": f"Failed to connect: {str(e)}"}
+        return {"status": "error", "message": f"Failed to connect: {str(e)}"}

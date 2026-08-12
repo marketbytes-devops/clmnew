@@ -32,6 +32,28 @@ export default function ClientRedlineModal({
     onClose();
   };
 
+  const handleCategoryChange = (e) => {
+    const newCategory = e.target.value;
+    setCategory(newCategory);
+    
+    switch (newCategory) {
+      case "Pricing / Payment Terms":
+        setContextReason("Requires alignment with standard payment cycles and internal financial policies.");
+        break;
+      case "Timeline / Milestone":
+        setContextReason("Need to adjust timelines to match internal delivery dependencies.");
+        break;
+      case "Scope Detail":
+        setContextReason("Clarification of deliverables required to avoid ambiguity.");
+        break;
+      case "Legal Clause":
+        setContextReason("Must comply with internal corporate risk and legal guidelines.");
+        break;
+      default:
+        setContextReason("");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
@@ -79,7 +101,7 @@ export default function ClientRedlineModal({
             </label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={handleCategoryChange}
               className="w-full text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
             >
               <option value="Pricing / Payment Terms">Pricing / Payment Terms</option>

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "MarketBytes CLM - Stage 1 Requester Portal",
+  title: "CLM Client",
   description: "Next-Generation Commercial Contract Intake & Orchestration",
 };
 

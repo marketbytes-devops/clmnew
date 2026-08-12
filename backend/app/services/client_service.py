@@ -5,8 +5,8 @@ from typing import Tuple, Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from app.client.models import Contract, PortalInviteToken, ClientRedline, ClientSignature, Notification
-from app.client.schemas import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
+from app.models.client import ClientPortalContract as Contract, PortalInviteToken, ClientRedline, ClientSignature, Notification
+from app.schemas.client import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
 
 DEFAULT_CONTRACT_ID = "REQ-2026-0891"
 DEFAULT_DEMO_TOKEN = "clm_invite_token_demo_2026_acme_corp"
@@ -450,4 +450,3 @@ def create_custom_contract_invite(
         "client_url": f"http://localhost:3000/client?token={token_str}",
         "cm_url": f"http://localhost:3000/cm/negotiation/{contract_id}"
     }
-

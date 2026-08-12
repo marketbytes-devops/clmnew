@@ -3,8 +3,9 @@ from sqlalchemy import Column, String, Float, Boolean, Text, DateTime, Integer, 
 from sqlalchemy.orm import relationship
 from app.database import Base
 
-class Contract(Base):
+class ClientPortalContract(Base):
     __tablename__ = "contracts"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(50), primary_key=True, index=True)
     title = Column(String(255), nullable=False)
@@ -31,6 +32,7 @@ class Contract(Base):
 
 class PortalInviteToken(Base):
     __tablename__ = "portal_invite_tokens"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
@@ -39,10 +41,11 @@ class PortalInviteToken(Base):
     is_revoked = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="tokens")
+    contract = relationship("ClientPortalContract", back_populates="tokens")
 
 class ClientRedline(Base):
     __tablename__ = "client_redlines"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
@@ -54,10 +57,11 @@ class ClientRedline(Base):
     cm_counter_wording = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="redlines")
+    contract = relationship("ClientPortalContract", back_populates="redlines")
 
 class ClientSignature(Base):
     __tablename__ = "client_signatures"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
@@ -67,10 +71,11 @@ class ClientSignature(Base):
     ip_address = Column(String(100), nullable=True)
     signed_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="signatures")
+    contract = relationship("ClientPortalContract", back_populates="signatures")
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
@@ -80,4 +85,4 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="notifications")
+    contract = relationship("ClientPortalContract", back_populates="notifications")
