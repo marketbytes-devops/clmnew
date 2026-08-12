@@ -22,12 +22,10 @@ export default function DependencyDashboard() {
         const response = await api.get('/api/v1/dependencies/me');
         if (response.status === 200) {
           const data = response.data;
-          // Note: The UI expects fields like task_objective, client, priority, status, date, sla_deadline
-          // api.js converts backend snake_case to camelCase. So task_objective becomes taskObjective
           const mappedData = data.map(dep => ({
             ...dep,
             date: dep.createdAt ? new Date(dep.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            client: dep.brief?.clientName || "Unknown Client", 
+            client: dep.brief?.clientName || "Unknown Client",
             task_objective: dep.taskObjective || dep.description || "Task",
             id: `REQ-000${dep.id || 0}`
           }));

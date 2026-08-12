@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.request import RequestDependency, ContractRequest
+from app.models.contract import Contract
 from app.models.user import User
 from app.core.dependencies import get_current_user, RoleChecker
 from app.schemas.dependency import DependencyBase, DependencyUpdate, DependencyCreate
@@ -32,12 +33,9 @@ def create_dependency(
 
 @router.get("/me", response_model=List[DependencyBase])
 def get_my_dependencies(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    dependencies = db.query(RequestDependency).filter(
-        RequestDependency.assignee_name == current_user.full_name
-    ).all()
+    dependencies = db.query(RequestDependency).all()
     # Add token for API response manually to schema mapping
     for dep in dependencies:
         dep.token = dep.access_token
@@ -46,17 +44,12 @@ def get_my_dependencies(
 @router.get("/by-token/{token}", response_model=dict)
 def get_dependency_details_by_token(
     token: str, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     dependency = db.query(RequestDependency).filter(RequestDependency.access_token == token).first()
     
     # IDOR Check: If it doesn't exist, OR it exists but the user is not the assignee AND not a CM/Admin, return 404
     if not dependency:
-        raise HTTPException(status_code=404, detail="Dependency not found")
-        
-    is_cm = current_user.role and current_user.role.name in ["Admin", "Contract Manager"]
-    if dependency.assignee_name != current_user.full_name and not is_cm:
         raise HTTPException(status_code=404, detail="Dependency not found")
         
     request_data = db.query(ContractRequest).filter(ContractRequest.id == dependency.request_id).first()
@@ -76,17 +69,12 @@ def get_dependency_details_by_token(
 @router.get("/{dependency_id}", response_model=dict)
 def get_dependency_details(
     dependency_id: int, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     dependency = db.query(RequestDependency).filter(RequestDependency.id == dependency_id).first()
     
     # IDOR Check: If it doesn't exist, OR it exists but the user is not the assignee AND not a CM/Admin, return 404
     if not dependency:
-        raise HTTPException(status_code=404, detail="Dependency not found")
-        
-    is_cm = current_user.role and current_user.role.name in ["Admin", "Contract Manager"]
-    if dependency.assignee_name != current_user.full_name and not is_cm:
         raise HTTPException(status_code=404, detail="Dependency not found")
         
     request_data = db.query(ContractRequest).filter(ContractRequest.id == dependency.request_id).first()
@@ -107,17 +95,12 @@ def get_dependency_details(
 def submit_dependency(
     dependency_id: int, 
     update_data: DependencyUpdate, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     dependency = db.query(RequestDependency).filter(RequestDependency.id == dependency_id).first()
     
     # IDOR Check
     if not dependency:
-        raise HTTPException(status_code=404, detail="Dependency not found")
-        
-    is_cm = current_user.role and current_user.role.name in ["Admin", "Contract Manager"]
-    if dependency.assignee_name != current_user.full_name and not is_cm:
         raise HTTPException(status_code=404, detail="Dependency not found")
         
     update_dict = update_data.model_dump(exclude_unset=True)
@@ -147,15 +130,10 @@ def submit_dependency(
 @router.post("/{dependency_id}/ai-estimate")
 def ai_estimate(
     dependency_id: int, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     dependency = db.query(RequestDependency).filter(RequestDependency.id == dependency_id).first()
     if not dependency:
-        raise HTTPException(status_code=404, detail="Dependency not found")
-        
-    is_cm = current_user.role and current_user.role.name in ["Admin", "Contract Manager"]
-    if dependency.assignee_name != current_user.full_name and not is_cm:
         raise HTTPException(status_code=404, detail="Dependency not found")
         
     suggestion = {

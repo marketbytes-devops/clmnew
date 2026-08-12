@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../../../components/common/Button";
+import api from "@/service/api";
 
 export default function MyDependencyTasks() {
   const router = useRouter();
@@ -15,98 +16,30 @@ export default function MyDependencyTasks() {
   const [priorityFilter, setPriorityFilter] = useState('ALL');
 
   useEffect(() => {
-    // Initialize mock data in localStorage if it doesn't exist
-    const initializeMockData = () => {
-      const existing = localStorage.getItem("clm_mock_dependencies");
-      if (!existing) {
-        const initialData = [
-          {
-            id: "REQ-2026-0891",
-            token: "task-0891",
-            task_objective: "Technical Estimation for Web App Proposal",
-            client: "Acme Corp",
-            sla_deadline: "18h 42m",
-            priority: "High",
-            status: "Pending",
-            department: "UI/UX Design",
-            date: "2026-08-11",
-            brief: {
-              title: "Proposal for E-Commerce Web Application",
-              description: "Development of an e-commerce platform with custom payment gateway and mobile app.",
-              client_name: "Acme Corp",
-              deliverables: [{ name: "Figma Wireframes", description: "Low and high fidelity screens" }]
-            }
-          },
-          {
-            id: "REQ-2026-0902",
-            token: "task-0902",
-            task_objective: "Feasibility Review: Legacy ERP Integration",
-            client: "Globex Inc",
-            sla_deadline: "04h 15m",
-            priority: "Urgent",
-            status: "Pending",
-            department: "UI/UX Design",
-            date: "2026-08-10",
-            brief: {
-              title: "Legacy ERP Integration Review",
-              description: "Assess feasibility of integrating new CLM with 15-year-old on-prem ERP.",
-              client_name: "Globex Inc",
-              deliverables: [{ name: "Feasibility Report", description: "Technical constraints and risks" }]
-            }
-          },
-          {
-            id: "REQ-2026-0855",
-            token: "task-0855",
-            task_objective: "Effort Estimation for Mobile App UI",
-            client: "Stark Industries",
-            sla_deadline: "-",
-            priority: "Medium",
-            status: "Completed",
-            department: "UI/UX Design",
-            date: "2026-08-05",
-            brief: {
-              title: "Mobile App Redesign",
-              description: "Update the existing interface to match new brand guidelines.",
-              client_name: "Stark Industries",
-              deliverables: [{ name: "Figma Prototypes", description: "Mobile views" }]
-            }
-          },
-          {
-            id: "REQ-2026-0822",
-            token: "task-0822",
-            task_objective: "Scope Refinement for Partner Portal",
-            client: "Wayne Enterprises",
-            sla_deadline: "-",
-            priority: "Low",
-            status: "Completed",
-            department: "UI/UX Design",
-            date: "2026-08-01",
-            brief: {
-              title: "Partner Portal Refinement",
-              description: "Define user permissions and views for external partners.",
-              client_name: "Wayne Enterprises",
-              deliverables: [{ name: "Scope Document", description: "Detailed feature breakdown" }]
-            }
-          }
-        ];
-        localStorage.setItem("clm_mock_dependencies", JSON.stringify(initialData));
-      }
-    };
-
-    const fetchTasks = () => {
-      initializeMockData();
+    const fetchTasks = async () => {
       try {
-        const data = JSON.parse(localStorage.getItem("clm_mock_dependencies")) || [];
-        setTasks(data);
+        const response = await api.get('/api/v1/dependencies/me');
+        if (response.status === 200) {
+          const data = response.data;
+          const mappedData = data.map(dep => ({
+            ...dep,
+            date: dep.createdAt ? new Date(dep.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            client: dep.brief?.clientName || "Unknown Client",
+            task_objective: dep.taskObjective || dep.description || "Task",
+            id: `REQ-000${dep.id || 0}`
+          }));
+          setTasks(mappedData);
+        } else {
+          console.error("Failed to fetch tasks from backend");
+        }
       } catch (err) {
-        console.error("Failed to load mock tasks", err);
+        console.error("Network error fetching tasks", err);
       } finally {
         setLoading(false);
       }
     };
     
-    // Simulate slight network delay
-    setTimeout(fetchTasks, 300);
+    fetchTasks();
   }, []);
 
   const handleTaskClick = (token) => {
