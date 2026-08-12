@@ -109,21 +109,25 @@ class RequestProceedToDrafting(BaseModel):
     payment_schedule: str
     milestone_breakdown: Optional[List[Dict[str, Any]]] = []
     scope_approval_checkpoint: bool = True
+    status: Optional[str] = None
 
 class RequestApprovePayload(BaseModel):
     authorization_checkpoint: bool = True
     approval_notes: Optional[str] = None
     security_pin: Optional[str] = None
+    approved_by: Optional[str] = None
 
 class RequestRejectionRollbackPayload(BaseModel):
     rejection_category: str
     rejection_reason: str
     clause_reference: Optional[str] = None
+    rejected_by: Optional[str] = None
 
 class RequestInlineCommentPayload(BaseModel):
     paragraph_ref: str
     comment_type: str # General Feedback, Required Wording Change, Financial Query, Compliance Block
     content: str
+    author: Optional[str] = None
 
 class RequestAttachmentCreate(BaseModel):
     file_name: str

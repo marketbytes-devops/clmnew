@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../../../context/appContext';
 import Button from '../../../components/common/Button';
 
-export default function SettingsPage() {
+export default function ProfilePage() {
   const { user, setUser, logout } = useAppContext();
 
   // Local form state initialized from global user context
@@ -22,11 +22,13 @@ export default function SettingsPage() {
     }
 
     // Save changes to the global context state
-    setUser({
+    const updatedUser = {
       ...user,
       name,
       email
-    });
+    };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
 
     setSaveSuccess(true);
     setTimeout(() => {
@@ -38,7 +40,7 @@ export default function SettingsPage() {
     <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-7 min-h-screen bg-[#f1f6f0] text-[#1c2918]">
       {/* Header */}
       <header className="bg-white p-7 rounded-3xl border border-[#cbdcbe] shadow-sm">
-        <h1 className="text-3xl font-black text-[#1c2918] tracking-tight">Profile Settings</h1>
+        <h1 className="text-3xl font-black text-[#1c2918] tracking-tight">Profile</h1>
         <p className="text-xs font-bold text-[#637756] mt-1">Manage your account profile details.</p>
       </header>
 
@@ -79,7 +81,7 @@ export default function SettingsPage() {
         {/* Success Banner */}
         {saveSuccess && (
           <div className="p-4 bg-[#dcf0d2] border border-[#7ca66c] text-[#284f1b] rounded-2xl text-xs font-black animate-fadeIn flex items-center gap-2">
-            <span>✓</span> Profile settings saved successfully! Your default details are synchronized.
+            <span>✓</span> Profile saved successfully!
           </div>
         )}
 

@@ -3,8 +3,8 @@ from sqlalchemy import Column, String, Float, Boolean, Text, DateTime, Integer, 
 from sqlalchemy.orm import relationship
 from app.database import Base
 
-class Contract(Base):
-    __tablename__ = "contracts"
+class ClientContract(Base):
+    __tablename__ = "client_contracts"
 
     id = Column(String(50), primary_key=True, index=True)
     title = Column(String(255), nullable=False)
@@ -27,25 +27,25 @@ class Contract(Base):
     tokens = relationship("PortalInviteToken", back_populates="contract", cascade="all, delete-orphan")
     redlines = relationship("ClientRedline", back_populates="contract", cascade="all, delete-orphan")
     signatures = relationship("ClientSignature", back_populates="contract", cascade="all, delete-orphan")
-    notifications = relationship("Notification", back_populates="contract", cascade="all, delete-orphan")
+    notifications = relationship("ClientNotification", back_populates="contract", cascade="all, delete-orphan")
 
 class PortalInviteToken(Base):
     __tablename__ = "portal_invite_tokens"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
     token = Column(String(128), unique=True, index=True, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     is_revoked = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="tokens")
+    contract = relationship("ClientContract", back_populates="tokens")
 
 class ClientRedline(Base):
     __tablename__ = "client_redlines"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
     selected_text = Column(Text, nullable=False)
     category = Column(String(100), nullable=False)
     proposed_wording = Column(Text, nullable=False)
@@ -54,30 +54,30 @@ class ClientRedline(Base):
     cm_counter_wording = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="redlines")
+    contract = relationship("ClientContract", back_populates="redlines")
 
 class ClientSignature(Base):
     __tablename__ = "client_signatures"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
     signer_name = Column(String(255), nullable=False)
     signer_title = Column(String(255), nullable=False)
     signature_data = Column(Text, nullable=False)
     ip_address = Column(String(100), nullable=True)
     signed_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="signatures")
+    contract = relationship("ClientContract", back_populates="signatures")
 
-class Notification(Base):
-    __tablename__ = "notifications"
+class ClientNotification(Base):
+    __tablename__ = "client_notifications"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
     recipient_role = Column(String(50), nullable=False) # CM, CLIENT
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("Contract", back_populates="notifications")
+    contract = relationship("ClientContract", back_populates="notifications")

@@ -91,6 +91,11 @@ export const analyzeDocumentAI = async (fileOrName, fileTextContent = "") => {
 
     fileToUpload = new File([content], fileOrName.name || "simulated_file.txt", { type: 'text/plain' });
   }
+
+  const formData = new FormData();
+  formData.append('file', fileToUpload);
+
+  return await post('/api/ai/parse-document', formData);
 };
 
 // Fetch dynamic suggestions from AI Copilot
@@ -168,6 +173,16 @@ export const APIService = {
       body: JSON.stringify(userData)
     });
     if (!res.ok) throw new Error('Failed to create user');
+    return res.json();
+  },
+
+  updateUser: async (id, userData) => {
+    const res = await fetchWithTimeout(`${BASE_URL}/admin/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    if (!res.ok) throw new Error('Failed to update user');
     return res.json();
   },
 

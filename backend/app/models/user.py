@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Table, Float, JSON
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Table, Float, JSON, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -60,3 +60,29 @@ class LoginHistory(Base):
     status = Column(String(50), nullable=False) # Success, Failed
     
     user = relationship("User", back_populates="login_history")
+
+class ContractManager(Base):
+    __tablename__ = "contract_managers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    workload = Column(String(255), nullable=True)
+    department = Column(String(255), nullable=True)
+
+class DepartmentLead(Base):
+    __tablename__ = "department_leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    department = Column(String(255), nullable=False)
+    lead_name = Column(String(255), nullable=False)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message = Column(Text, nullable=False)
+    time_ago = Column(String(100), nullable=True)
+    related_request_id = Column(String(50), nullable=True)
+    read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
