@@ -1,6 +1,6 @@
 import { get, post, put, del } from './apiMethods';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 // Helper fetch with timeout for extra reliability
 const fetchWithTimeout = async (url, options = {}, timeoutMs = 5000) => {
