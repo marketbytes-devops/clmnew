@@ -42,7 +42,7 @@ class ContractRequest(Base):
     # Step 4: Routing & Dependency Toggle
     require_dependencies = Column(Boolean, default=True)
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=True) # Linked contract when drafted
+    contract_id = Column(String(50), ForeignKey("contracts.id"), nullable=True) # Linked contract when drafted
 
     # Stage 2: Orchestration & Synthesis
     ai_aggregated_synthesis = Column(JSON, nullable=True) # { total_hours, blended_timeline, estimated_cost, recommended_pricing, risks }
@@ -82,6 +82,7 @@ class RequestDependency(Base):
     sla_deadline = Column(String(100), nullable=True)
     required_inputs = Column(JSON, nullable=True)
     status = Column(String(50), default="Pending") # Pending, Completed, Waived
+    access_token = Column(String(100), unique=True, index=True, nullable=True)
 
     # Lead Submission Fields
     feasibility = Column(String(50), nullable=True) # Feasible, Feasible with Risks, Not Feasible
@@ -91,6 +92,7 @@ class RequestDependency(Base):
     total_cost = Column(Float, default=0.0)
     assumptions = Column(JSON, nullable=True)
     lead_attachments = Column(JSON, nullable=True)
+    normalized_value = Column(String(255), nullable=True)
 
     request = relationship("ContractRequest", back_populates="dependencies")
 

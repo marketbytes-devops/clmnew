@@ -1213,6 +1213,116 @@ export default function RequestWizard() {
                 )}
               </div>
 
+              {/* Section B: Pre-Drafting Dependency Tasks Configuration */}
+              <div className="space-y-5 pt-5 border-t border-[#d8e7cf]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#436137]">Section B: Pre-Drafting Dependency Setup</h3>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <span className="text-xs font-black text-[#314627]">Require Pre-Drafting Dependency Support?</span>
+                    <div className="relative">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only" 
+                        checked={formData.requirePreDraftingSupport}
+                        onChange={(e) => handleChange('requirePreDraftingSupport', e.target.checked)}
+                      />
+                      <div className={`block w-10 h-6 rounded-full transition-colors ${formData.requirePreDraftingSupport ? 'bg-[#4f6e43]' : 'bg-[#cbdcbe]'}`}></div>
+                      <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.requirePreDraftingSupport ? 'transform translate-x-4' : ''}`}></div>
+                    </div>
+                  </label>
+                </div>
+
+                {formData.requirePreDraftingSupport && (
+                  <div className="bg-[#f4f9f2] rounded-3xl border border-[#cbdcbe] shadow-sm overflow-hidden animate-fadeIn">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm border-collapse">
+                        <thead>
+                          <tr className="bg-[#e9f2e4] border-b border-[#cbdcbe] text-[10px] font-black text-[#2f4820] uppercase tracking-wider">
+                            <th className="p-4">Department / Function</th>
+                            <th className="p-4">Lead / Assignee</th>
+                            <th className="p-4">Task Objective</th>
+                            <th className="p-4">SLA / Deadline</th>
+                            <th className="p-4">Required Field Inputs</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#d8e7cf]">
+                          {formData.dependencyMatrix.length > 0 ? (
+                            formData.dependencyMatrix.map((item, idx) => (
+                              <tr key={idx} className="bg-white hover:bg-[#fafdf9]">
+                                <td className="p-4 font-black text-[#314627] whitespace-nowrap">
+                                  {item.department}
+                                </td>
+                                <td className="p-4 min-w-[200px]">
+                                  <select 
+                                    value={item.lead} 
+                                    onChange={(e) => updateMatrixItem(idx, 'lead', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-[#f4f9f2] border border-[#cbdcbe] text-xs font-bold text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
+                                  >
+                                    {(departmentLeads && departmentLeads[item.department] ? departmentLeads[item.department] : ['Team Lead / Manager']).map((leadName, i) => (
+                                      <option key={i} value={leadName}>{leadName}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="p-4 min-w-[250px]">
+                                  <input 
+                                    type="text" 
+                                    value={item.objective} 
+                                    onChange={(e) => updateMatrixItem(idx, 'objective', e.target.value)}
+                                    placeholder="Task Objective..."
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-[#cbdcbe] text-xs font-semibold text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
+                                  />
+                                </td>
+                                <td className="p-4 min-w-[150px]">
+                                  <select 
+                                    value={item.sla} 
+                                    onChange={(e) => updateMatrixItem(idx, 'sla', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-[#e7f2df] border border-[#a8c79c] text-xs font-black text-[#263b1a] focus:ring-2 focus:ring-[#4f6e43]"
+                                  >
+                                    <option value="12 Hours">12 Hours</option>
+                                    <option value="24 Hours">24 Hours</option>
+                                    <option value="48 Hours">48 Hours</option>
+                                    <option value="1 Week">1 Week</option>
+                                  </select>
+                                </td>
+                                <td className="p-4 min-w-[200px]">
+                                  <div className="flex flex-col gap-2 text-[10px] font-bold text-[#556b49]">
+                                    {['Hours Estimate', 'Resource Count', 'Costing', 'Feasibility Note'].map(req => {
+                                      const isChecked = item.requiredInputs?.includes(req);
+                                      return (
+                                        <label key={req} className="flex items-center gap-2 cursor-pointer">
+                                          <input 
+                                            type="checkbox" 
+                                            checked={isChecked}
+                                            onChange={(e) => {
+                                              const checked = e.target.checked;
+                                              const updatedInputs = checked 
+                                                ? [...(item.requiredInputs || []), req]
+                                                : (item.requiredInputs || []).filter(r => r !== req);
+                                              updateMatrixItem(idx, 'requiredInputs', updatedInputs);
+                                            }}
+                                            className="w-3.5 h-3.5 text-[#4f6e43] rounded focus:ring-[#4f6e43]"
+                                          />
+                                          <span>{req}</span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="5" className="p-6 text-center text-xs font-bold text-[#768a68]">
+                                No dependencies selected in Step 3.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
 
             </div>
           )}

@@ -6,9 +6,8 @@ from sqlalchemy import text
 
 from app import database
 from app.models import user, contract, request
-from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests
+from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests, client, dependencies
 from app.api.v1.portal import router as portal_router
-from app.client.routes import router as client_router
 
 app = FastAPI(
     title="CLM Backend API",
@@ -54,11 +53,13 @@ app.include_router(repository.router, prefix="/api/v1/repository", tags=["reposi
 app.include_router(requests.router, prefix="/api/v1/requests", tags=["requests"])
 app.include_router(requests.router, prefix="/api/contracts/requests", tags=["requests"])
 
+app.include_router(dependencies.router, prefix="/api/v1")
+
 # Portal Router for general Requester Portal features (/metrics, /notifications, /managers, /leads)
 app.include_router(portal_router, prefix="/api/contracts", tags=["portal"])
 
 # Register Client Portal Router (contains its own prefixes /api/client)
-app.include_router(client_router)
+app.include_router(client.router)
 
 @app.get("/", response_class=HTMLResponse)
 def root():

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.client.schemas import (
+from app.schemas.client import (
     ContractClientResponse,
     PasscodeVerifyRequest,
     RedlinesSubmitRequest,
@@ -12,7 +12,7 @@ from app.client.schemas import (
     RedispatchRequest,
     NotificationResponse
 )
-from app.client import service
+from app.services import client_service
 
 router = APIRouter(prefix="/api/client", tags=["Client Portal"])
 
@@ -31,7 +31,7 @@ def generate_invite(
     """
     Generate a dynamic portal_invite_token link for ANY contract type (NDA, MSA, Proposal, Vendor Agreement).
     """
-    result = service.create_custom_contract_invite(
+    result = client_service.create_custom_contract_invite(
         db=db,
         contract_type=body.contract_type,
         title=body.title,
@@ -48,7 +48,7 @@ def reset_demo(
     """
     Reset demo contract REQ-2026-0891 to clean v1.0 APPROVED state.
     """
-    return service.reset_demo_contract(db)
+    return client_service.reset_demo_contract(db)
 
 @router.get("/contract", response_model=ContractClientResponse)
 def get_client_contract(
@@ -60,7 +60,7 @@ def get_client_contract(
     Fetch proposal / contract details for the Client Interactive View.
     Re-validates portal_invite_token expiration, revocation, and contract state.
     """
-    payload = service.get_client_contract_payload(db, token_str=token, passcode=passcode)
+    payload = client_service.get_client_contract_payload(db, token_str=token, passcode=passcode)
     return payload
 
 @router.post("/verify-passcode", response_model=ContractClientResponse)
@@ -71,7 +71,7 @@ def verify_passcode(
     """
     Verify 2FA passcode for protected proposal links.
     """
-    payload = service.get_client_contract_payload(db, token_str=body.token, passcode=body.passcode)
+    payload = client_service.get_client_contract_payload(db, token_str=body.token, passcode=body.passcode)
     if body.passcode and not payload.get("is_passcode_verified"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -88,7 +88,7 @@ def submit_redlines(
     Submit client redlines / proposed modifications. Re-validates token on every write.
     State transitions from APPROVED -> CLIENT_NEGOTIATION and dispatches notification to CM.
     """
-    created_items = service.add_client_redlines(db, request_data=body)
+    created_items = client_service.add_client_redlines(db, request_data=body)
     return {
         "status": "success",
         "message": f"Successfully submitted {len(created_items)} redlines/change requests to the ClientContract Manager.",
@@ -106,9 +106,8 @@ def sign_contract(
     State transitions -> EXECUTED and locks token against future redline/sign writes.
     """
     client_ip = request.client.host if request.client else "127.0.0.1"
-    result = service.execute_client_signature(db, request_data=body, client_ip=client_ip)
+    result = client_service.execute_client_signature(db, request_data=body, client_ip=client_ip)
     return result
-
 @router.get("/negotiation/{contract_id}")
 def get_cm_negotiation(
     contract_id: str,
@@ -117,7 +116,7 @@ def get_cm_negotiation(
     """
     Screen 5.3: Fetch ClientContract Manager Internal Negotiation Workbench payload (client redlines, document text, version history).
     """
-    payload = service.get_cm_negotiation_payload(db, contract_id=contract_id)
+    payload = client_service.get_cm_negotiation_payload(db, contract_id=contract_id)
     return payload
 
 @router.post("/negotiation/redispatch")
@@ -128,7 +127,7 @@ def redispatch_contract(
     """
     Screen 5.3: ClientContract Manager resolves client redlines (Accept/Counter/Reject), increments version v1.0 -> v1.1, and re-dispatches.
     """
-    result = service.resolve_redlines_and_redispatch(db, request_data=body)
+    result = client_service.resolve_redlines_and_redispatch(db, request_data=body)
     return result
 
 @router.get("/notifications", response_model=List[NotificationResponse])
@@ -138,5 +137,5 @@ def get_notifications(
     """
     Fetch active system notifications for the ClientContract Manager.
     """
-    notifications = service.get_cm_notifications(db)
+    notifications = client_service.get_cm_notifications(db)
     return notifications

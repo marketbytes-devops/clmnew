@@ -5,6 +5,7 @@ from app.database import Base
 
 class ClientContract(Base):
     __tablename__ = "client_contracts"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(50), primary_key=True, index=True)
     title = Column(String(255), nullable=False)
@@ -31,6 +32,7 @@ class ClientContract(Base):
 
 class PortalInviteToken(Base):
     __tablename__ = "portal_invite_tokens"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
@@ -43,6 +45,7 @@ class PortalInviteToken(Base):
 
 class ClientRedline(Base):
     __tablename__ = "client_redlines"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
@@ -58,6 +61,7 @@ class ClientRedline(Base):
 
 class ClientSignature(Base):
     __tablename__ = "client_signatures"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
@@ -71,6 +75,7 @@ class ClientSignature(Base):
 
 class ClientNotification(Base):
     __tablename__ = "client_notifications"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)

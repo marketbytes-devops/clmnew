@@ -22,7 +22,8 @@ def auto_migrate():
                 ("contracts", "version_notes", "TEXT NULL"),
                 ("contracts", "last_redispatched_at", "DATETIME NULL"),
                 ("client_redlines", "status", "VARCHAR(50) DEFAULT 'PENDING'"),
-                ("client_redlines", "cm_counter_wording", "TEXT NULL")
+                ("client_redlines", "cm_counter_wording", "TEXT NULL"),
+                ("request_dependencies", "normalized_value", "VARCHAR(255) NULL")
             ]
             for table, col, col_def in cols_to_add:
                 try:

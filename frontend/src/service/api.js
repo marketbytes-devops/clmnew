@@ -32,8 +32,10 @@ api.interceptors.request.use(
   (config) => {
     const isPublicRequest = typeof window !== 'undefined' && (
       window.location.pathname.startsWith('/public') ||
+      window.location.pathname.startsWith('/client') ||
       (config.url && config.url.includes('/auth/login')) ||
-      (config.url && config.url.includes('/auth/register'))
+      (config.url && config.url.includes('/auth/register')) ||
+      (config.url && config.url.includes('/api/client'))
     );
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -60,11 +62,15 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Do not redirect if the request was an explicit login attempt or public view
+      // Do not redirect if the request was an explicit login attempt, public view, or client portal
       const isLoginRequest = error.config && error.config.url && error.config.url.includes('/login');
-      const isPublicView = typeof window !== 'undefined' && window.location.pathname.startsWith('/public');
+      const isPublicView = typeof window !== 'undefined' && (
+        window.location.pathname.startsWith('/public') ||
+        window.location.pathname.startsWith('/client')
+      );
+      const isClientApi = error.config && error.config.url && error.config.url.includes('/api/client');
       
-      if (!isLoginRequest && !isPublicView && typeof window !== 'undefined') {
+      if (!isLoginRequest && !isPublicView && !isClientApi && typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login';

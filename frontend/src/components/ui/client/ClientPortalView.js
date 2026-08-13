@@ -71,6 +71,7 @@ export default function ClientPortalView({
   };
 
   const contentSections = contract?.content_json?.sections || [];
+  const activeSectionData = contentSections.find((s) => s.id === activeSection);
   const dbRedlines = contract?.redlines || [];
   const allRedlines = [...dbRedlines, ...localRedlines];
 
@@ -583,6 +584,7 @@ export default function ClientPortalView({
         }}
         selectedText={selectedText}
         onAddRedline={handleAddRedline}
+        sectionTitle={activeSectionData?.title}
       />
 
       {/* Feedback Drawer */}

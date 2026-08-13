@@ -51,7 +51,7 @@ export const updateAdminSettings = async (settings) => {
 // ==========================================
 export const getContractRequests = async () => {
   try {
-    return await get('/api/contracts/requests');
+    return await get('/api/v1/requests');
   } catch (err) {
     console.warn('Backend server offline, returning fallback contract requests');
     return [];
@@ -492,7 +492,43 @@ export const APIService = {
     });
     if (!res.ok) throw new Error('Failed to convert request to contract');
     return res.json();
+  },
+
+  // ==========================================
+  // Client Portal Methods (Client Module)
+  // ==========================================
+  getClientContract: async (token, passcode) => {
+    const query = passcode ? `?token=${encodeURIComponent(token)}&passcode=${encodeURIComponent(passcode)}` : `?token=${encodeURIComponent(token)}`;
+    return await get(`/api/client/contract${query}`);
+  },
+
+  verifyClientPasscode: async (token, passcode) => {
+    return await post('/api/client/verify-passcode', { token, passcode });
+  },
+
+  submitClientRedlines: async (token, submissionNote, redlines) => {
+    return await post('/api/client/redline', { token, submissionNote, redlines });
+  },
+
+  executeClientSignature: async (token, signerName, signerTitle, signatureData) => {
+    return await post('/api/client/sign', { token, signerName, signerTitle, signatureData });
+  },
+
+  generateClientInvite: async (inviteData) => {
+    return await post('/api/client/generate-invite', inviteData);
+  },
+
+  resetClientDemo: async () => {
+    return await post('/api/client/reset-demo');
   }
 };
 
+export const getClientContract = APIService.getClientContract;
+export const verifyClientPasscode = APIService.verifyClientPasscode;
+export const submitClientRedlines = APIService.submitClientRedlines;
+export const executeClientSignature = APIService.executeClientSignature;
+export const generateClientInvite = APIService.generateClientInvite;
+export const resetClientDemo = APIService.resetClientDemo;
+
+export { APIService };
 export default APIService;
