@@ -11,13 +11,29 @@ SECRET_KEY = os.getenv("SECRET_KEY", "fallback_secret_key_change_me_in_productio
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+import bcrypt
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8') if isinstance(plain_password, str) else plain_password,
+            hashed_password.encode('utf-8') if isinstance(hashed_password, str) else hashed_password
+        )
+    except Exception:
+        try:
+            return pwd_context.verify(plain_password, hashed_password)
+        except Exception:
+            return False
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(
+        password.encode('utf-8') if isinstance(password, str) else password,
+        salt
+    )
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

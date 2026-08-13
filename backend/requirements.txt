@@ -2,7 +2,7 @@ alembic==1.19.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.14.2
-bcrypt==5.0.0
+bcrypt==3.2.0
 cffi==2.1.1
 click==8.4.2
 colorama==0.4.6
@@ -32,3 +32,4 @@ typing-inspection==0.4.2
 typing_extensions==4.16.0
 uvicorn==0.52.1
 email-validator
+pypdf

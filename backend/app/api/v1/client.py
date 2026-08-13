@@ -91,7 +91,7 @@ def submit_redlines(
     created_items = client_service.add_client_redlines(db, request_data=body)
     return {
         "status": "success",
-        "message": f"Successfully submitted {len(created_items)} redlines/change requests to the Contract Manager.",
+        "message": f"Successfully submitted {len(created_items)} redlines/change requests to the ClientContract Manager.",
         "count": len(created_items)
     }
 
@@ -108,3 +108,34 @@ def sign_contract(
     client_ip = request.client.host if request.client else "127.0.0.1"
     result = client_service.execute_client_signature(db, request_data=body, client_ip=client_ip)
     return result
+@router.get("/negotiation/{contract_id}")
+def get_cm_negotiation(
+    contract_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Screen 5.3: Fetch ClientContract Manager Internal Negotiation Workbench payload (client redlines, document text, version history).
+    """
+    payload = client_service.get_cm_negotiation_payload(db, contract_id=contract_id)
+    return payload
+
+@router.post("/negotiation/redispatch")
+def redispatch_contract(
+    body: RedispatchRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Screen 5.3: ClientContract Manager resolves client redlines (Accept/Counter/Reject), increments version v1.0 -> v1.1, and re-dispatches.
+    """
+    result = client_service.resolve_redlines_and_redispatch(db, request_data=body)
+    return result
+
+@router.get("/notifications", response_model=List[NotificationResponse])
+def get_notifications(
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch active system notifications for the ClientContract Manager.
+    """
+    notifications = client_service.get_cm_notifications(db)
+    return notifications

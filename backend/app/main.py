@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app import database
 from app.models import user, contract, request
 from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests, client, dependencies
+from app.api.v1.portal import router as portal_router
 
 app = FastAPI(
     title="CLM Backend API",
@@ -14,27 +15,51 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for frontend
+# Enable CORS for Next.js frontend
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
+    allow_origin_regex="http://localhost:.*", # Allows other localhost ports if needed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include Routers
+# Include Routers with both /api/v1 and /api prefixes to support both Requester and Admin Portals
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+
 app.include_router(contracts.router, prefix="/api/v1/admin/contracts", tags=["contracts"])
+
 app.include_router(users.router, prefix="/api/v1/admin/users", tags=["users"])
+
 app.include_router(departments.router, prefix="/api/v1/admin/departments", tags=["departments"])
+app.include_router(departments.router, prefix="/api/v1/departments", tags=["departments"])
+
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
+app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
+
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
+
 app.include_router(repository.router, prefix="/api/v1/repository", tags=["repository"])
+
 app.include_router(requests.router, prefix="/api/v1/requests", tags=["requests"])
-app.include_router(client.router)
+app.include_router(requests.router, prefix="/api/contracts/requests", tags=["requests"])
+
 app.include_router(dependencies.router, prefix="/api/v1")
+
+# Portal Router for general Requester Portal features (/metrics, /notifications, /managers, /leads)
+app.include_router(portal_router, prefix="/api/contracts", tags=["portal"])
+
+# Register Client Portal Router (contains its own prefixes /api/client)
+app.include_router(client.router)
 
 @app.get("/", response_class=HTMLResponse)
 def root():
@@ -50,7 +75,7 @@ def root():
         </head>
         <body>
             <div class="container">
-                <h1>Welcome to the API</h1>
+                <h1>Welcome to the CLM Backend API</h1>
                 <p>Please register or login to continue.</p>
                 <a href="/docs">Go to API Docs (Swagger UI)</a>
             </div>
@@ -64,4 +89,4 @@ def test_db_connection(db: Session = Depends(database.get_db)):
         db.execute(text("SELECT 1"))
         return {"status": "success", "message": "Successfully connected to the clmnew database!"}
     except Exception as e:
-        return {"status": "error", "message": f"Failed to connect: {str(e)}"}
+        return {"status": "error", "message": f"Failed to connect: {str(e)}"}

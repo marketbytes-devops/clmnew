@@ -5,7 +5,7 @@ from typing import Tuple, Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from app.models.client import ClientPortalContract as Contract, PortalInviteToken, ClientRedline, ClientSignature, Notification
+from app.models.client import ClientContract, PortalInviteToken, ClientRedline, ClientSignature, ClientNotification
 from app.schemas.client import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
 
 DEFAULT_CONTRACT_ID = "REQ-2026-0891"
@@ -54,7 +54,7 @@ PRESET_TEMPLATES = {
     }
 }
 
-def validate_portal_token(db: Session, token_str: str) -> Tuple[PortalInviteToken, Contract]:
+def validate_portal_token(db: Session, token_str: str) -> Tuple[PortalInviteToken, ClientContract]:
     if not token_str:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,7 +83,7 @@ def validate_portal_token(db: Session, token_str: str) -> Tuple[PortalInviteToke
             detail="This portal invite link has expired (14-day limit exceeded)."
         )
 
-    contract_obj = db.query(Contract).filter(Contract.id == token_obj.contract_id).first()
+    contract_obj = db.query(ClientContract).filter(ClientContract.id == token_obj.contract_id).first()
     if not contract_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -92,10 +92,10 @@ def validate_portal_token(db: Session, token_str: str) -> Tuple[PortalInviteToke
 
     return token_obj, contract_obj
 
-def create_or_get_demo_contract(db: Session) -> Tuple[Contract, PortalInviteToken]:
-    contract_obj = db.query(Contract).filter(Contract.id == DEFAULT_CONTRACT_ID).first()
+def create_or_get_demo_contract(db: Session) -> Tuple[ClientContract, PortalInviteToken]:
+    contract_obj = db.query(ClientContract).filter(ClientContract.id == DEFAULT_CONTRACT_ID).first()
     if not contract_obj:
-        contract_obj = Contract(
+        contract_obj = ClientContract(
             id=DEFAULT_CONTRACT_ID,
             title=PRESET_TEMPLATES["Proposal"]["title"],
             client_name="Acme Corporation",
@@ -131,9 +131,9 @@ def create_or_get_demo_contract(db: Session) -> Tuple[Contract, PortalInviteToke
 def reset_demo_contract(db: Session):
     db.query(ClientRedline).filter(ClientRedline.contract_id == DEFAULT_CONTRACT_ID).delete()
     db.query(ClientSignature).filter(ClientSignature.contract_id == DEFAULT_CONTRACT_ID).delete()
-    db.query(Notification).filter(Notification.contract_id == DEFAULT_CONTRACT_ID).delete()
+    db.query(ClientNotification).filter(ClientNotification.contract_id == DEFAULT_CONTRACT_ID).delete()
 
-    contract_obj = db.query(Contract).filter(Contract.id == DEFAULT_CONTRACT_ID).first()
+    contract_obj = db.query(ClientContract).filter(ClientContract.id == DEFAULT_CONTRACT_ID).first()
     if contract_obj:
         contract_obj.version = "v1.0"
         contract_obj.status = "APPROVED"
@@ -198,7 +198,7 @@ def add_client_redlines(db: Session, request_data: RedlinesSubmitRequest):
     if contract_obj.status == "EXECUTED":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Contract has already been executed and signed."
+            detail="ClientContract has already been executed and signed."
         )
 
     new_redlines = []
@@ -216,8 +216,8 @@ def add_client_redlines(db: Session, request_data: RedlinesSubmitRequest):
 
     contract_obj.status = "CLIENT_NEGOTIATION"
 
-    # Create Notification for Contract Manager
-    notification = Notification(
+    # Create ClientNotification for ClientContract Manager
+    notification = ClientNotification(
         contract_id=contract_obj.id,
         recipient_role="CM",
         title=f"Client Redlines Submitted ({contract_obj.client_name})",
@@ -249,11 +249,11 @@ def execute_client_signature(db: Session, request_data: SignatureSubmitRequest, 
 
     contract_obj.status = "EXECUTED"
 
-    # Create Notification for Contract Manager
-    notification = Notification(
+    # Create ClientNotification for ClientContract Manager
+    notification = ClientNotification(
         contract_id=contract_obj.id,
         recipient_role="CM",
-        title=f"Contract Executed ({contract_obj.client_name})",
+        title=f"ClientContract Executed ({contract_obj.client_name})",
         message=f"{request_data.signer_name} ({request_data.signer_title}) has signed {contract_obj.title} ({contract_obj.version})."
     )
     db.add(notification)
@@ -262,14 +262,14 @@ def execute_client_signature(db: Session, request_data: SignatureSubmitRequest, 
 
     return {
         "status": "success",
-        "message": "Contract successfully signed and executed!",
+        "message": "ClientContract successfully signed and executed!",
         "contract_id": contract_obj.id,
         "signer_name": request_data.signer_name,
         "signed_at": signature_record.signed_at
     }
 
 def get_cm_negotiation_payload(db: Session, contract_id: str):
-    contract_obj = db.query(Contract).filter(Contract.id == contract_id).first()
+    contract_obj = db.query(ClientContract).filter(ClientContract.id == contract_id).first()
     if not contract_obj:
         # Fallback to demo contract
         contract_obj, _ = create_or_get_demo_contract(db)
@@ -297,11 +297,11 @@ def get_cm_negotiation_payload(db: Session, contract_id: str):
     }
 
 def resolve_redlines_and_redispatch(db: Session, request_data: RedispatchRequest):
-    contract_obj = db.query(Contract).filter(Contract.id == request_data.contract_id).first()
+    contract_obj = db.query(ClientContract).filter(ClientContract.id == request_data.contract_id).first()
     if not contract_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Contract record not found."
+            detail="ClientContract record not found."
         )
 
     # Process redline action items
@@ -338,12 +338,12 @@ def resolve_redlines_and_redispatch(db: Session, request_data: RedispatchRequest
     contract_obj.last_redispatched_at = datetime.utcnow()
     contract_obj.status = "APPROVED" # Re-approved for client signature
 
-    # Create Notification for Client
-    notification = Notification(
+    # Create ClientNotification for Client
+    notification = ClientNotification(
         contract_id=contract_obj.id,
         recipient_role="CLIENT",
         title=f"Proposal Updated to {new_v}",
-        message=f"Contract Manager has updated {contract_obj.title} to version {new_v} based on your feedback. Please review and sign."
+        message=f"ClientContract Manager has updated {contract_obj.title} to version {new_v} based on your feedback. Please review and sign."
     )
     db.add(notification)
 
@@ -351,13 +351,13 @@ def resolve_redlines_and_redispatch(db: Session, request_data: RedispatchRequest
 
     return {
         "status": "success",
-        "message": f"Contract successfully updated to {new_v} and re-dispatched to client!",
+        "message": f"ClientContract successfully updated to {new_v} and re-dispatched to client!",
         "new_version": new_v,
         "contract_id": contract_obj.id
     }
 
 def get_cm_notifications(db: Session):
-    notifications = db.query(Notification).filter(Notification.recipient_role == "CM").order_by(Notification.created_at.desc()).all()
+    notifications = db.query(ClientNotification).filter(ClientNotification.recipient_role == "CM").order_by(ClientNotification.created_at.desc()).all()
     return notifications
 
 def create_custom_contract_invite(
@@ -407,7 +407,7 @@ def create_custom_contract_invite(
                 "title": "Commercial Terms & Disbursement Schedule",
                 "content": f"Total agreed contract fee for this {contract_type} is ${template_data.get('total_value', 45000.0):,.2f} USD.",
                 "milestones": [
-                    {"name": "Contract Signing Advance", "percentage": "40%", "amount": f"${template_data.get('total_value', 45000.0)*0.4:,.2f} USD"},
+                    {"name": "ClientContract Signing Advance", "percentage": "40%", "amount": f"${template_data.get('total_value', 45000.0)*0.4:,.2f} USD"},
                     {"name": "Core Integration Milestone", "percentage": "40%", "amount": f"${template_data.get('total_value', 45000.0)*0.4:,.2f} USD"},
                     {"name": "Final Acceptance Sign-off", "percentage": "20%", "amount": f"${template_data.get('total_value', 45000.0)*0.2:,.2f} USD"}
                 ]
@@ -415,7 +415,7 @@ def create_custom_contract_invite(
         ]
     }
 
-    contract_obj = Contract(
+    contract_obj = ClientContract(
         id=contract_id,
         title=contract_title,
         client_name=client_name,
