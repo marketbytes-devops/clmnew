@@ -23,6 +23,7 @@ def auto_migrate():
                 ("contracts", "last_redispatched_at", "DATETIME NULL"),
                 ("client_redlines", "status", "VARCHAR(50) DEFAULT 'PENDING'"),
                 ("client_redlines", "cm_counter_wording", "TEXT NULL"),
+<<<<<<< HEAD
                 ("contract_requests", "tracking_id", "VARCHAR(100) NULL"),
                 ("contract_requests", "requester_department", "VARCHAR(100) NULL"),
                 ("contract_requests", "business_unit", "VARCHAR(100) NULL"),
@@ -53,6 +54,9 @@ def auto_migrate():
                 ("contract_requests", "inline_comments", "JSON NULL"),
                 ("contract_requests", "rejection_rollback_log", "JSON NULL"),
                 ("contract_requests", "audit_watermark", "VARCHAR(255) NULL")
+=======
+                ("request_dependencies", "normalized_value", "VARCHAR(255) NULL")
+>>>>>>> 7ca0c63fd39acedef4288b4e85c831bf61510776
             ]
             for table, col, col_def in cols_to_add:
                 try:

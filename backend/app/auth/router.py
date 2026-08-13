@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
 from typing import Optional
+import re
+import random
+import string
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 from ..database import get_db
-from . import models, schemas, utils
+from app.core.models import User, Organization, Department, Role, PendingRegistration
+from . import schemas, utils
 from .dependencies import get_current_admin_user
 
 router = APIRouter(
@@ -11,25 +16,105 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
-@router.post("/register", response_model=schemas.UserResponse)
-def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+@router.post("/register/initiate", response_model=schemas.MessageResponse)
+def initiate_registration(user: schemas.UserCreate, db: Session = Depends(get_db)):
     # Check if user already exists
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     
+    # Generate 6-digit OTP
+    otp_code = ''.join(random.choices(string.digits, k=6))
+    
     # Hash password
     hashed_password = utils.get_password_hash(user.password)
     
-    # Create new user
-    new_user = models.User(
-        email=user.email,
-        password=hashed_password
+    # Check if a pending registration already exists for this email
+    pending = db.query(PendingRegistration).filter(PendingRegistration.email == user.email).first()
+    
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    if pending:
+        pending.password_hash = hashed_password
+        pending.full_name = user.full_name
+        pending.org_name = user.org_name
+        pending.otp_code = otp_code
+        pending.expires_at = expires_at
+    else:
+        pending = PendingRegistration(
+            email=user.email,
+            password_hash=hashed_password,
+            full_name=user.full_name,
+            org_name=user.org_name,
+            otp_code=otp_code,
+            expires_at=expires_at
+        )
+        db.add(pending)
+        
+    db.commit()
+    
+    # Send email
+    utils.send_otp_email(user.email, otp_code)
+    
+    return {"message": "OTP sent to your email. Please verify to complete registration."}
+
+@router.post("/register/verify", response_model=schemas.UserResponse)
+def verify_registration(otp_data: schemas.OTPVerify, db: Session = Depends(get_db)):
+    pending = db.query(PendingRegistration).filter(PendingRegistration.email == otp_data.email).first()
+    
+    if not pending:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending registration found")
+        
+    if pending.otp_code != otp_data.otp_code:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP code")
+        
+    if pending.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP code has expired")
+        
+    # Create Organization
+    subdomain = re.sub(r'[^a-zA-Z0-9]', '', pending.org_name.lower())
+    
+    # Ensure unique subdomain
+    base_subdomain = subdomain
+    counter = 1
+    while db.query(Organization).filter(Organization.subdomain == subdomain).first():
+        subdomain = f"{base_subdomain}{counter}"
+        counter += 1
+
+    new_org = Organization(
+        name=pending.org_name,
+        subdomain=subdomain
     )
+    db.add(new_org)
+    db.flush() # flush to get org id
+
+    # Create default departments
+    default_depts = ["sales", "marketing", "finance", "legal", "contract_manager", "operations"]
+    for dept_name in default_depts:
+        dept = Department(org_id=new_org.id, name=dept_name, description=f"{dept_name.capitalize()} Department")
+        db.add(dept)
+    
+    # Create admin role for this organization
+    admin_role = Role(org_id=new_org.id, name="admin", description="Organization Administrator")
+    db.add(admin_role)
+    db.flush()
+
+    # Create new user
+    new_user = User(
+        org_id=new_org.id,
+        email=pending.email,
+        password_hash=pending.password_hash,
+        full_name=pending.full_name
+    )
+    new_user.roles.append(admin_role)
     db.add(new_user)
+    
+    # Delete pending registration
+    db.delete(pending)
+    
     db.commit()
     db.refresh(new_user)
     
@@ -38,7 +123,7 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=schemas.LoginResponse)
 def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get_db)):
     # Find user by email
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -47,16 +132,32 @@ def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get
         )
     
     # Verify password
-    if not utils.verify_password(user.password, db_user.password):
+    if not utils.verify_password(user.password, db_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Get user roles
+    roles = [role.name for role in db_user.roles]
+    
+    # Build token payload
+    token_data = {
+        "sub": str(db_user.id),
+        "email": db_user.email,
+        "roles": roles,
+    }
+    
+    # Superadmin does not need org restriction in token
+    if "superadmin" not in roles:
+        token_data["org_id"] = db_user.org_id
+        if db_user.organization:
+            token_data["org_name"] = db_user.organization.name
+            
     # Create tokens
-    access_token = utils.create_access_token(data={"sub": str(db_user.id), "role": db_user.role})
-    refresh_token = utils.create_refresh_token(data={"sub": str(db_user.id), "role": db_user.role})
+    access_token = utils.create_access_token(data=token_data)
+    refresh_token = utils.create_refresh_token(data=token_data)
     
     # Set HttpOnly cookie for refresh token
     response.set_cookie(
@@ -74,6 +175,7 @@ def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get
         "user": db_user
     }
 
+<<<<<<< HEAD
 @router.post("/admin/users", response_model=schemas.UserResponse)
 def create_user_as_admin(
     user: schemas.AdminUserCreate, 
@@ -102,6 +204,8 @@ def create_user_as_admin(
     
     return new_user
 
+=======
+>>>>>>> 7ca0c63fd39acedef4288b4e85c831bf61510776
 @router.post("/refresh", response_model=schemas.TokenRefreshResponse)
 def refresh_token(
     response: Response,
@@ -128,16 +232,31 @@ def refresh_token(
             detail="Invalid token payload",
         )
         
-    db_user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+    db_user = db.query(User).filter(User.id == int(user_id)).first()
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
         
+    # Get user roles
+    roles = [role.name for role in db_user.roles]
+    
+    # Build token payload
+    token_data = {
+        "sub": str(db_user.id),
+        "email": db_user.email,
+        "roles": roles,
+    }
+    
+    if "superadmin" not in roles:
+        token_data["org_id"] = db_user.org_id
+        if db_user.organization:
+            token_data["org_name"] = db_user.organization.name
+
     # Create new tokens
-    access_token = utils.create_access_token(data={"sub": str(db_user.id), "role": db_user.role})
-    new_refresh_token = utils.create_refresh_token(data={"sub": str(db_user.id), "role": db_user.role})
+    access_token = utils.create_access_token(data=token_data)
+    new_refresh_token = utils.create_refresh_token(data=token_data)
     
     # Set new HttpOnly cookie for refresh token
     response.set_cookie(

@@ -1,12 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MessageSquarePlus, X, Check } from "lucide-react";
 
-export default function ClientRedlineModal({ isOpen, onClose, selectedText, onAddRedline }) {
+export default function ClientRedlineModal({ isOpen, onClose, selectedText, onAddRedline, sectionTitle }) {
   const [category, setCategory] = useState("Pricing / Payment Terms");
-  const [proposedWording, setProposedWording] = useState(selectedText || "");
+  const [proposedWording, setProposedWording] = useState("");
   const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setProposedWording(selectedText || "");
+      
+      let initialCategory = "Pricing / Payment Terms";
+      let initialReason = "Requires alignment with standard payment cycles and internal financial policies.";
+
+      if (sectionTitle) {
+        const titleLower = sectionTitle.toLowerCase();
+        if (titleLower.includes("preamble") || titleLower.includes("legal") || titleLower.includes("confidentiality") || titleLower.includes("warrant")) {
+          initialCategory = "Legal Clause";
+          initialReason = "Must comply with internal corporate risk and legal guidelines.";
+        } else if (titleLower.includes("scope") || titleLower.includes("deliverable") || titleLower.includes("service") || titleLower.includes("technical")) {
+          initialCategory = "Scope Detail";
+          initialReason = "Clarification of deliverables required to avoid ambiguity.";
+        } else if (titleLower.includes("timeline") || titleLower.includes("milestone") || titleLower.includes("schedule") || titleLower.includes("term")) {
+          initialCategory = "Timeline / Milestone";
+          initialReason = "Need to adjust timelines to match internal delivery dependencies.";
+        }
+      }
+
+      setCategory(initialCategory);
+      setReason(initialReason);
+    }
+  }, [isOpen, selectedText, sectionTitle]);
 
   if (!isOpen) return null;
 
@@ -20,6 +46,28 @@ export default function ClientRedlineModal({ isOpen, onClose, selectedText, onAd
         reason: reason.trim()
       });
       onClose();
+    }
+  };
+
+  const handleCategoryChange = (e) => {
+    const newCategory = e.target.value;
+    setCategory(newCategory);
+    
+    switch (newCategory) {
+      case "Pricing / Payment Terms":
+        setReason("Requires alignment with standard payment cycles and internal financial policies.");
+        break;
+      case "Timeline / Milestone":
+        setReason("Need to adjust timelines to match internal delivery dependencies.");
+        break;
+      case "Scope Detail":
+        setReason("Clarification of deliverables required to avoid ambiguity.");
+        break;
+      case "Legal Clause":
+        setReason("Must comply with internal corporate risk and legal guidelines.");
+        break;
+      default:
+        setReason("");
     }
   };
 
@@ -59,7 +107,7 @@ export default function ClientRedlineModal({ isOpen, onClose, selectedText, onAd
             </label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={handleCategoryChange}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl py-2.5 px-3 text-sm text-slate-900 focus:outline-none focus:border-emerald-600"
             >
               <option value="Pricing / Payment Terms">Pricing / Payment Terms</option>

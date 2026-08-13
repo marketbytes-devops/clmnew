@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Any
 from app.database import get_db
@@ -52,3 +52,31 @@ def create_prompt(prompt: AIPromptCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_prompt)
     return db_prompt
+
+from pydantic import BaseModel
+
+class AICopilotSuggestionsRequest(BaseModel):
+    client_name: Optional[str] = ""
+    contract_category: Optional[str] = ""
+    contract_type: Optional[str] = ""
+    estimated_value: Optional[float] = 0.0
+    scope_summary: Optional[str] = ""
+
+@router.post("/parse-document")
+async def parse_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    ai_service = AIService(db)
+    try:
+        result = await ai_service.parse_document(file)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/copilot-suggestions")
+def copilot_suggestions(request: AICopilotSuggestionsRequest, db: Session = Depends(get_db)):
+    ai_service = AIService(db)
+    try:
+        result = ai_service.get_copilot_suggestions(request)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

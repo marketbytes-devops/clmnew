@@ -14,6 +14,9 @@ export default function RequestWizard() {
     submitNewRequest,
     triggerAIParsing,
     aiParsingState,
+    copilotSuggestions,
+    copilotLoading,
+    fetchCopilotSuggestions,
     contractRequests,
     loading
   } = useAppContext();
@@ -127,6 +130,46 @@ export default function RequestWizard() {
       setFormData(prev => ({ ...prev, dependencyMatrix: updatedMatrix }));
     }
   }, [formData.selectedDependencies, departmentLeads]);
+
+  useEffect(() => {
+    if (currentStep !== 3) return;
+
+    const payload = {
+      client_name: formData.clientName,
+      contract_category: formData.contractCategory,
+      contract_type: formData.contractType,
+      estimated_value: parseFloat(formData.estimatedValue) || 0.0,
+      scope_summary: formData.scopeSummary
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchCopilotSuggestions(payload);
+    }, 1000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [
+    formData.clientName,
+    formData.contractCategory,
+    formData.contractType,
+    formData.estimatedValue,
+    formData.scopeSummary,
+    currentStep
+  ]);
+
+  const handleApplyAICopilotSuggestions = () => {
+    if (!copilotSuggestions) return;
+    
+    // Apply baseline deliverables and dependencies suggested by Gemini
+    setFormData(prev => ({
+      ...prev,
+      deliverables: copilotSuggestions.deliverables && copilotSuggestions.deliverables.length > 0 
+        ? copilotSuggestions.deliverables 
+        : prev.deliverables,
+      selectedDependencies: copilotSuggestions.suggestedDependencies && copilotSuggestions.suggestedDependencies.length > 0
+        ? copilotSuggestions.suggestedDependencies
+        : prev.selectedDependencies
+    }));
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => {
@@ -1170,6 +1213,116 @@ export default function RequestWizard() {
                 )}
               </div>
 
+              {/* Section B: Pre-Drafting Dependency Tasks Configuration */}
+              <div className="space-y-5 pt-5 border-t border-[#d8e7cf]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#436137]">Section B: Pre-Drafting Dependency Setup</h3>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <span className="text-xs font-black text-[#314627]">Require Pre-Drafting Dependency Support?</span>
+                    <div className="relative">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only" 
+                        checked={formData.requirePreDraftingSupport}
+                        onChange={(e) => handleChange('requirePreDraftingSupport', e.target.checked)}
+                      />
+                      <div className={`block w-10 h-6 rounded-full transition-colors ${formData.requirePreDraftingSupport ? 'bg-[#4f6e43]' : 'bg-[#cbdcbe]'}`}></div>
+                      <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.requirePreDraftingSupport ? 'transform translate-x-4' : ''}`}></div>
+                    </div>
+                  </label>
+                </div>
+
+                {formData.requirePreDraftingSupport && (
+                  <div className="bg-[#f4f9f2] rounded-3xl border border-[#cbdcbe] shadow-sm overflow-hidden animate-fadeIn">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm border-collapse">
+                        <thead>
+                          <tr className="bg-[#e9f2e4] border-b border-[#cbdcbe] text-[10px] font-black text-[#2f4820] uppercase tracking-wider">
+                            <th className="p-4">Department / Function</th>
+                            <th className="p-4">Lead / Assignee</th>
+                            <th className="p-4">Task Objective</th>
+                            <th className="p-4">SLA / Deadline</th>
+                            <th className="p-4">Required Field Inputs</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#d8e7cf]">
+                          {formData.dependencyMatrix.length > 0 ? (
+                            formData.dependencyMatrix.map((item, idx) => (
+                              <tr key={idx} className="bg-white hover:bg-[#fafdf9]">
+                                <td className="p-4 font-black text-[#314627] whitespace-nowrap">
+                                  {item.department}
+                                </td>
+                                <td className="p-4 min-w-[200px]">
+                                  <select 
+                                    value={item.lead} 
+                                    onChange={(e) => updateMatrixItem(idx, 'lead', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-[#f4f9f2] border border-[#cbdcbe] text-xs font-bold text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
+                                  >
+                                    {(departmentLeads && departmentLeads[item.department] ? departmentLeads[item.department] : ['Team Lead / Manager']).map((leadName, i) => (
+                                      <option key={i} value={leadName}>{leadName}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="p-4 min-w-[250px]">
+                                  <input 
+                                    type="text" 
+                                    value={item.objective} 
+                                    onChange={(e) => updateMatrixItem(idx, 'objective', e.target.value)}
+                                    placeholder="Task Objective..."
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-[#cbdcbe] text-xs font-semibold text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
+                                  />
+                                </td>
+                                <td className="p-4 min-w-[150px]">
+                                  <select 
+                                    value={item.sla} 
+                                    onChange={(e) => updateMatrixItem(idx, 'sla', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-[#e7f2df] border border-[#a8c79c] text-xs font-black text-[#263b1a] focus:ring-2 focus:ring-[#4f6e43]"
+                                  >
+                                    <option value="12 Hours">12 Hours</option>
+                                    <option value="24 Hours">24 Hours</option>
+                                    <option value="48 Hours">48 Hours</option>
+                                    <option value="1 Week">1 Week</option>
+                                  </select>
+                                </td>
+                                <td className="p-4 min-w-[200px]">
+                                  <div className="flex flex-col gap-2 text-[10px] font-bold text-[#556b49]">
+                                    {['Hours Estimate', 'Resource Count', 'Costing', 'Feasibility Note'].map(req => {
+                                      const isChecked = item.requiredInputs?.includes(req);
+                                      return (
+                                        <label key={req} className="flex items-center gap-2 cursor-pointer">
+                                          <input 
+                                            type="checkbox" 
+                                            checked={isChecked}
+                                            onChange={(e) => {
+                                              const checked = e.target.checked;
+                                              const updatedInputs = checked 
+                                                ? [...(item.requiredInputs || []), req]
+                                                : (item.requiredInputs || []).filter(r => r !== req);
+                                              updateMatrixItem(idx, 'requiredInputs', updatedInputs);
+                                            }}
+                                            className="w-3.5 h-3.5 text-[#4f6e43] rounded focus:ring-[#4f6e43]"
+                                          />
+                                          <span>{req}</span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="5" className="p-6 text-center text-xs font-bold text-[#768a68]">
+                                No dependencies selected in Step 3.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
 
             </div>
           )}
@@ -1220,32 +1373,54 @@ export default function RequestWizard() {
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-2xl bg-[#f2f8ef] border border-[#bcd3af] text-[#263c1c] space-y-2">
-                <p className="font-black text-[#385329] text-sm">Historical Memory Suggestion:</p>
-                <p className="leading-relaxed font-semibold text-xs text-[#4b633b]">
-                  "For similar E-Commerce agreements completed in 2025–2026 (e.g., <i>Project YoKoBaine Phase 1</i>), average UI design estimation was <b>45 hours</b> and Backend integration averaged <b>110 hours</b>."
-                </p>
-              </div>
+              {copilotLoading ? (
+                <div className="space-y-4 animate-pulse">
+                  <div className="p-4 rounded-2xl bg-[#edf4ea] border border-[#d2dec8] space-y-3">
+                    <div className="h-4 bg-[#d5e5cf] rounded-md w-1/3"></div>
+                    <div className="h-3 bg-[#e2ebe0] rounded-md w-full"></div>
+                    <div className="h-3 bg-[#e2ebe0] rounded-md w-5/6"></div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#edf4ea] border border-[#d2dec8] space-y-3">
+                    <div className="h-4 bg-[#d5e5cf] rounded-md w-1/2"></div>
+                    <div className="h-3 bg-[#e2ebe0] rounded-md w-full"></div>
+                    <div className="h-9 bg-[#d5e5cf] rounded-xl w-full mt-2"></div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 rounded-2xl bg-[#f2f8ef] border border-[#bcd3af] text-[#263c1c] space-y-2">
+                    <p className="font-black text-[#385329] text-sm">Historical Memory Suggestion:</p>
+                    <p 
+                      className="leading-relaxed font-semibold text-xs text-[#4b633b]"
+                      dangerouslySetInnerHTML={{ 
+                        __html: copilotSuggestions?.historicalMemory || "For similar E-Commerce agreements completed in 2025–2026 (e.g., <i>Project YoKoBaine Phase 1</i>), average UI design estimation was <b>45 hours</b> and Backend integration averaged <b>110 hours</b>." 
+                      }} 
+                    />
+                  </div>
 
-              <div className="p-4 rounded-2xl bg-[#f7fbf6] border border-[#cbdcbe] space-y-3">
-                <p className="font-black text-[#1c2918]">Recommended Next Action:</p>
-                <p className="text-[#55694a] font-semibold">
-                  Click below to apply baseline deliverables and pre-select UI/UX and Engineering dependency teams.
-                </p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleSimulatedAIFileDrop(null, "Project_YoKoBaine_Baseline.docx")}
-                  className="w-full text-xs py-3 bg-[#4f6e43] hover:bg-[#3d5733] font-black shadow-md shadow-[#4f6e43]/20"
-                >
-                  Apply AI Baseline Estimates
-                </Button>
-              </div>
+                  <div className="p-4 rounded-2xl bg-[#f7fbf6] border border-[#cbdcbe] space-y-3">
+                    <p className="font-black text-[#1c2918]">Recommended Next Action:</p>
+                    <p className="text-[#55694a] font-semibold">
+                      {copilotSuggestions?.recommendedAction || "Click below to apply baseline deliverables and pre-select UI/UX and Engineering dependency teams."}
+                    </p>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={copilotSuggestions ? handleApplyAICopilotSuggestions : () => handleSimulatedAIFileDrop(null, "Project_YoKoBaine_Baseline.docx")}
+                      className="w-full text-xs py-3 bg-[#4f6e43] hover:bg-[#3d5733] font-black shadow-md shadow-[#4f6e43]/20"
+                    >
+                      {copilotSuggestions ? `Apply AI Baseline Estimates (${copilotSuggestions.deliverables?.length || 0} items)` : "Apply AI Baseline Estimates"}
+                    </Button>
+                  </div>
+                </>
+              )}
 
               {aiParsingState?.data && (
                 <div className="p-4 rounded-2xl bg-[#dcf0d2] border-2 border-[#6f985c] text-[#213b15] space-y-2 animate-fadeIn shadow-2xs">
                   <p className="font-black text-[#28461b]">✓ AI Document Extractor Success</p>
-                  <p className="text-[11px] font-bold leading-relaxed text-[#355824]">Auto-filled Scope Summary with 3 key milestones and flagged Net-45 payment terms.</p>
+                  <p className="text-[11px] font-bold leading-relaxed text-[#355824]">
+                    Auto-filled Scope Summary with {aiParsingState.data.deliverables?.length || 0} key milestones, pre-selected dependencies, and flagged terms.
+                  </p>
                 </div>
               )}
             </div>

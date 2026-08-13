@@ -3,6 +3,7 @@ from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import or_
 
 from app.database import get_db
@@ -186,18 +187,19 @@ def add_inline_comment(
         "id": len(existing_comments) + 1,
         "paragraph_ref": comment_payload.paragraph_ref,
         "comment_type": comment_payload.comment_type,
-        "author": "Finance Reviewer (Sarah Jenkins)",
+        "author": comment_payload.author or "Finance Reviewer (Sarah Jenkins)",
         "content": comment_payload.content,
         "timestamp": datetime.utcnow().isoformat()
     }
     existing_comments.append(new_comment)
     db_request.inline_comments = existing_comments
+    flag_modified(db_request, "inline_comments")
 
     # Add timeline log
     timeline_event = RequestTimeline(
         request_id=db_request.id,
         event_type="Inline Redline Comment",
-        description=f"Inline comment ({comment_payload.comment_type}) added to {comment_payload.paragraph_ref}."
+        description=f"Inline comment ({comment_payload.comment_type}) added by {comment_payload.author or 'Sarah Jenkins'} to {comment_payload.paragraph_ref}."
     )
     db.add(timeline_event)
     db.commit()
@@ -233,17 +235,30 @@ def reject_and_rollback(
         "category": payload.rejection_category,
         "reason": payload.rejection_reason,
         "clause_ref": payload.clause_reference or "Section 4: Commercial Terms",
-        "rejected_by": "Finance Director (Sarah Jenkins)",
+        "rejected_by": payload.rejected_by or "Finance Director (Sarah Jenkins)",
         "timestamp": datetime.utcnow().isoformat()
     }
     rejections.append(rejection_entry)
     db_request.rejection_rollback_log = rejections
+    flag_modified(db_request, "rejection_rollback_log")
+
+    # Update active step status to Rejected in the approval sequence
+    sequence = list(db_request.approval_sequence or [])
+    for item in sequence:
+        if item.get("status") == "Pending":
+            item["status"] = "Rejected"
+            item["timestamp"] = datetime.utcnow().isoformat()
+            if payload.rejected_by:
+                item["name"] = payload.rejected_by
+            break
+    db_request.approval_sequence = sequence
+    flag_modified(db_request, "approval_sequence")
 
     # Timeline event
     timeline_event = RequestTimeline(
         request_id=db_request.id,
         event_type="Rejection & Rollback",
-        description=f"Rejected by Finance. Category: {payload.rejection_category}. Version incremented to {new_ver}. Status set to Re-Drafting."
+        description=f"Rejected by {payload.rejected_by or 'Finance'}. Category: {payload.rejection_category}. Version incremented to {new_ver}. Status set to Re-Drafting."
     )
     db.add(timeline_event)
     db.commit()
@@ -273,11 +288,21 @@ def approve_contract(
         {"step": 4, "role": "Executive", "name": "David Chen", "status": "Queued", "timestamp": None}
     ])
 
-    for item in sequence:
+    approved_index = -1
+    for i, item in enumerate(sequence):
         if item.get("status") == "Pending":
             item["status"] = "Approved"
             item["timestamp"] = datetime.utcnow().isoformat()
+            if payload.approved_by:
+                item["name"] = payload.approved_by
+            approved_index = i
             break
+
+    # Transition the next Queued step to Pending
+    if approved_index != -1 and approved_index + 1 < len(sequence):
+        next_item = sequence[approved_index + 1]
+        if next_item.get("status") == "Queued":
+            next_item["status"] = "Pending"
 
     # Check if all steps approved
     all_approved = all(item.get("status") == "Approved" for item in sequence)
@@ -285,6 +310,7 @@ def approve_contract(
 
     db_request.approval_sequence = sequence
     db_request.status = new_status
+    flag_modified(db_request, "approval_sequence")
 
     if all_approved:
         db_request.audit_watermark = {
@@ -292,12 +318,14 @@ def approve_contract(
             "digital_signature": f"SIG-{random.randint(10000, 99999)}-APPROVED",
             "version": f"{db_request.version_label or 'v1.0'}-APPROVED"
         }
+        flag_modified(db_request, "audit_watermark")
 
     # Timeline event
+    approved_by_name = payload.approved_by or "Sarah Jenkins"
     timeline_event = RequestTimeline(
         request_id=db_request.id,
         event_type="Internal Approval",
-        description=f"Formal approval recorded. New status: {new_status}."
+        description=f"Formal approval recorded by {approved_by_name}. New status: {new_status}."
     )
     db.add(timeline_event)
     db.commit()
@@ -376,6 +404,7 @@ def synthesize_dependencies(request_id: int, db: Session = Depends(get_db)):
     }
 
     db_request.ai_aggregated_synthesis = synthesis_result
+    flag_modified(db_request, "ai_aggregated_synthesis")
     db.commit()
 
     return synthesis_result
@@ -395,7 +424,37 @@ def proceed_to_drafting(
     db_request.payment_schedule = payload.payment_schedule
     db_request.milestone_breakdown = payload.milestone_breakdown
     db_request.scope_approval_checkpoint = payload.scope_approval_checkpoint
-    db_request.status = "Drafting In Progress"
+    if payload.milestone_breakdown:
+        flag_modified(db_request, "milestone_breakdown")
+
+    if payload.status in ["Review", "Internal Review"]:
+        db_request.status = "Internal Review"
+        # Reset/Initialize approval sequence for Stage 4 Review
+        sequence = list(db_request.approval_sequence or [])
+        if not sequence:
+            sequence = [
+                {"step": 1, "role": "Operations", "name": "Alex Miller", "status": "Approved", "timestamp": datetime.utcnow().isoformat()},
+                {"step": 2, "role": "Finance", "name": "Sarah Jenkins", "status": "Pending", "timestamp": None},
+                {"step": 3, "role": "Legal", "name": "Elena Rostova", "status": "Queued", "timestamp": None},
+                {"step": 4, "role": "Executive", "name": "David Chen", "status": "Queued", "timestamp": None}
+            ]
+        else:
+            for item in sequence:
+                role = item.get("role")
+                if role == "Operations":
+                    item["status"] = "Approved"
+                    if not item.get("timestamp"):
+                        item["timestamp"] = datetime.utcnow().isoformat()
+                elif role == "Finance":
+                    item["status"] = "Pending"
+                    item["timestamp"] = None
+                else:
+                    item["status"] = "Queued"
+                    item["timestamp"] = None
+        db_request.approval_sequence = sequence
+        flag_modified(db_request, "approval_sequence")
+    else:
+        db_request.status = "Drafting In Progress"
 
     if not db_request.contract_id:
         new_contract = Contract(
