@@ -135,7 +135,60 @@ export const AppProvider = ({ children }) => {
     initializeApp();
   }, [loadRequestsData, loadAssigneeOptions]);
 
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('clm_custom_users');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const saveUsersLocally = (updatedUsers) => {
+    setUsers(updatedUsers);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('clm_custom_users', JSON.stringify(updatedUsers));
+    }
+  };
+
+  const addUser = (newUser) => {
+    setUsers(prev => {
+      const updated = [newUser, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('clm_custom_users', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const [departments, setDepartments] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('clm_custom_departments');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const saveDepartmentsLocally = (updatedDepts) => {
+    setDepartments(updatedDepts);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('clm_custom_departments', JSON.stringify(updatedDepts));
+    }
+  };
+
+  const addDepartment = (newDept) => {
+    setDepartments(prev => {
+      const updated = [newDept, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('clm_custom_departments', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
   const [roles, setRoles] = useState([]);
 
   // Example of centralizing state logic for the Admin
@@ -260,6 +313,13 @@ export const AppProvider = ({ children }) => {
     submitNewRequest,
     triggerAIParsing,
     users,
+    setUsers,
+    saveUsersLocally,
+    addUser,
+    departments,
+    setDepartments,
+    saveDepartmentsLocally,
+    addDepartment,
     roles,
     contracts,
     requests,

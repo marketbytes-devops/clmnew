@@ -9,9 +9,11 @@ import {
 } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
 import { APIService } from '../../../service/apiService';
+import { useAppContext } from '../../../context/appContext';
 
 export default function DraftingWorkspacePage() {
   const router = useRouter();
+  const { contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [draftContracts, setDraftContracts] = useState([]);
   
@@ -45,47 +47,121 @@ export default function DraftingWorkspacePage() {
         APIService.getRequests().catch(() => [])
       ]);
 
-      const formattedContracts = (contractsData || []).map(c => ({
-        id: c.id,
+      const allContractsRaw = [
+        ...(contractsData || []),
+        ...(contextContracts || [])
+      ];
+
+      const allRequestsRaw = [
+        ...(requestsData || []),
+        ...(contextRequests || [])
+      ];
+
+      const contractsMap = new Map();
+      allContractsRaw.forEach(c => {
+        if (c && c.title) {
+          const key = c.id || c.title;
+          if (!contractsMap.has(key)) contractsMap.set(key, c);
+        }
+      });
+      const uniqueContracts = Array.from(contractsMap.values());
+
+      const requestsMap = new Map();
+      allRequestsRaw.forEach(r => {
+        if (r && (r.title || r.requestName)) {
+          const key = r.id || r.title || r.requestName;
+          if (!requestsMap.has(key)) requestsMap.set(key, r);
+        }
+      });
+      const uniqueRequests = Array.from(requestsMap.values());
+
+      const formattedContracts = uniqueContracts.map(c => ({
+        id: c.id || `CTR-${Date.now()}`,
         is_real_contract: true,
         raw_contract: c,
-        tracking_id: `CTR-2026-${c.id}`,
+        tracking_id: c.tracking_id || `CTR-2026-${c.id || Math.floor(100 + Math.random() * 900)}`,
         title: c.title,
-        entity_name: c.metadata_data?.counterparty || 'Acme Corp',
-        entity_type: 'Client / Customer',
-        contract_type: c.metadata_data?.contract_type || 'Master Services Agreement (MSA)',
-        category: c.metadata_data?.category || 'Revenue / Sales',
+        entity_name: c.metadata_data?.counterparty || c.metadata_data?.secondPartyName || c.entity_name || 'Acme Corp',
+        entity_type: c.entity_type || 'Client / Customer',
+        contract_type: c.metadata_data?.contractType || c.metadata_data?.contract_type || c.contract_type || 'Master Services Agreement (MSA)',
+        category: c.metadata_data?.category || c.category || 'Revenue / Sales',
         template: c.metadata_data?.template || 'Standard Template',
         jurisdiction: c.metadata_data?.jurisdiction || 'Delaware, USA',
         signatory: c.metadata_data?.signatory || 'Authorized Representative',
         value: c.value || 75000,
         currency: 'USD',
-        owner_name: 'Alex Miller',
-        priority: 'High',
+        owner_name: c.owner_name || 'Alex Miller',
+        priority: c.priority || 'High',
         status: c.status || 'Drafting In Progress',
         ai_summary: c.ai_summary || '',
         created_at: c.created_at || new Date().toISOString(),
         metadata_data: c.metadata_data || {}
       }));
 
-      const formattedRequests = (requestsData || []).filter(r => r.status === 'Drafting In Progress' || r.status === 'Dependency Gathering').map(r => ({
-        id: r.id,
-        tracking_id: r.tracking_id || `REQ-${r.id}`,
-        title: r.title,
-        entity_name: r.entity_name || 'Acme Corp',
+      const formattedRequests = uniqueRequests.filter(r => r.status === 'Drafting In Progress' || r.status === 'Dependency Gathering' || r.status === 'Draft').map(r => ({
+        id: r.id || `REQ-${Date.now()}`,
+        tracking_id: r.tracking_id || `REQ-2026-${r.id}`,
+        title: r.title || r.requestName || 'Contract Intake Draft',
+        entity_name: r.entity_name || r.clientName || 'Acme Corp',
         entity_type: r.entity_type || 'Client / Customer',
-        contract_type: r.contract_type || 'MSA',
-        category: r.category || 'Revenue / Sales',
-        value: r.final_commercial_pricing || r.deal_value || 22000,
+        contract_type: r.contract_type || r.contractType || 'MSA',
+        category: r.category || r.contractCategory || 'Revenue / Sales',
+        value: r.final_commercial_pricing || r.deal_value || r.estimatedValue || 22000,
         currency: r.currency || 'USD',
-        owner_name: 'Alex Miller',
+        owner_name: r.owner_name || 'Alex Miller',
         priority: r.priority || 'High',
-        status: r.status,
+        status: r.status || 'Drafting In Progress',
         created_at: r.created_at || new Date().toISOString(),
-        dependencies: r.dependencies
+        dependencies: r.dependencies || []
       }));
 
-      const combined = [...formattedContracts, ...formattedRequests];
+      let combined = [...formattedContracts, ...formattedRequests];
+
+      if (combined.length === 0) {
+        combined = [
+          {
+            id: 101,
+            is_real_contract: true,
+            tracking_id: 'CTR-2026-101',
+            title: 'Master Services Agreement (MSA) - Hooli Global',
+            entity_name: 'Hooli Global Technologies Ltd.',
+            entity_type: 'Client / Customer',
+            contract_type: 'Master Services Agreement (MSA)',
+            category: 'Revenue / Sales',
+            template: 'Company Standard Template (2026)',
+            jurisdiction: 'Delaware, USA',
+            signatory: 'David Chen (VP Engineering)',
+            value: 75000,
+            currency: 'USD',
+            owner_name: 'Alex Miller',
+            priority: 'High',
+            status: 'Drafting In Progress',
+            ai_summary: 'Comprehensive software development & SLA agreement.',
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 102,
+            is_real_contract: true,
+            tracking_id: 'CTR-2026-102',
+            title: 'Executive Software Engineer Offer Letter - Acme Corp',
+            entity_name: 'Jane Doe (Candidate)',
+            entity_type: 'Employee / Candidate',
+            contract_type: 'Executive Offer Letter',
+            category: 'HR & Employment',
+            template: 'Standard Employment Agreement',
+            jurisdiction: 'India (New Delhi / Mumbai)',
+            signatory: 'Sarah Jenkins (HR Lead)',
+            value: 1200000,
+            currency: 'INR',
+            owner_name: 'Sarah Jenkins',
+            priority: 'High',
+            status: 'Drafting In Progress',
+            ai_summary: 'Employment agreement including ₹12L annual base salary and 5,000 ESOP shares.',
+            created_at: new Date().toISOString()
+          }
+        ];
+      }
+
       setDraftContracts(combined);
     } catch (err) {
       console.error("Failed to load live contracts for drafting", err);
@@ -97,7 +173,7 @@ export default function DraftingWorkspacePage() {
 
   useEffect(() => {
     loadDraftingData();
-  }, []);
+  }, [contextContracts, contextRequests]);
 
   // Editing State for Draft Agreement
   const [isEditing, setIsEditing] = useState(false);

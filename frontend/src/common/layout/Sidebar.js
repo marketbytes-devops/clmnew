@@ -1,73 +1,311 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
-  Inbox, 
   FileText, 
-  PenTool, 
   CheckSquare, 
+  Inbox, 
+  PenTool, 
   Handshake, 
   Archive, 
   BarChart3, 
   Users, 
   Building2, 
-  ShieldAlert, 
+  ShieldCheck, 
   Cpu, 
-  Settings 
+  Settings,
+  FileCheck,
+  ChevronDown,
+  ChevronRight,
+  Briefcase,
+  UserCheck,
+  User
 } from 'lucide-react';
-
-const navItems = [
-  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'Contracts', href: '/admin/contracts', icon: FileText },
-  { name: 'Drafting', href: '/admin/drafting', icon: PenTool },
-  { name: 'Review', href: '/admin/review', icon: CheckSquare },
-  { name: 'Negotiation', href: '/admin/negotiation', icon: Handshake },
-  { name: 'Repository', href: '/admin/repository', icon: Archive },
-  { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-  { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Departments', href: '/admin/departments', icon: Building2 },
-  { name: 'Roles', href: '/admin/roles', icon: ShieldAlert },
-  { name: 'AI', href: '/admin/ai', icon: Cpu },
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
-];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
+  // Contract Manager Sub-pages routes check
+  const contractManagerRoutes = [
+    '/admin/contracts',
+    '/admin/requests',
+    '/admin/review',
+    '/admin/drafting',
+    '/admin/negotiation',
+    '/admin/repository'
+  ];
+
+  const isContractManagerActive = contractManagerRoutes.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  );
+
+  const isReviewerActive = pathname === '/admin/review' || pathname.startsWith('/admin/review/');
+
+  const [contractManagerOpen, setContractManagerOpen] = useState(true);
+  const [reviewerOpen, setReviewerOpen] = useState(true);
+
+  useEffect(() => {
+    if (isContractManagerActive) {
+      setContractManagerOpen(true);
+    }
+    if (isReviewerActive) {
+      setReviewerOpen(true);
+    }
+  }, [pathname, isContractManagerActive, isReviewerActive]);
+
+  const contractManagerSubItems = [
+    { name: 'Contracts', href: '/admin/contracts', icon: FileText },
+    { name: 'Requests / Intake', href: '/admin/requests', icon: Inbox },
+    { name: 'Approvals & Review', href: '/admin/review', icon: CheckSquare },
+    { name: 'Drafting', href: '/admin/drafting', icon: PenTool },
+    { name: 'Negotiation', href: '/admin/negotiation', icon: Handshake },
+    { name: 'Repository', href: '/admin/repository', icon: Archive },
+  ];
+
+  const reviewerSubItems = [
+    { name: 'Approvals & Review', href: '/admin/review', icon: CheckSquare },
+  ];
+
+  const adminSystemItems = [
+    { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Departments', href: '/admin/departments', icon: Building2 },
+    { name: 'Permissions', href: '/admin/permissions', icon: ShieldCheck },
+    { name: 'AI Assistant', href: '/admin/ai', icon: Cpu },
+    { name: 'Settings', href: '/admin/settings', icon: Settings },
+  ];
+
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen fixed top-0 left-0">
-      <div className="h-16 flex items-center justify-center border-b border-slate-700 bg-slate-950">
-        <span className="text-xl font-bold text-white tracking-wider flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-500" />
-          CLM Admin
-        </span>
+    <aside className="w-64 bg-white text-slate-700 flex flex-col h-screen fixed top-0 left-0 border-r border-slate-200/80 shadow-2xs z-20 font-sans">
+      
+      {/* Brand Header */}
+      <div className="h-20 flex items-center px-6 border-b border-slate-100 gap-3">
+        <div className="w-9 h-9 rounded-xl bg-emerald-100/80 flex items-center justify-center text-emerald-600 shadow-2xs">
+          <FileCheck className="w-5 h-5 text-emerald-600" />
+        </div>
+        <div>
+          <span className="text-lg font-extrabold text-slate-900 tracking-tight leading-none block">
+            CLM
+          </span>
+          <span className="text-[10px] font-medium text-slate-400 leading-tight block mt-0.5">
+            Contract Lifecycle Management
+          </span>
+        </div>
       </div>
       
-      <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="space-y-1 px-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.name}>
-                <Link 
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    isActive 
-                      ? 'bg-blue-600 text-white font-medium shadow-md' 
-                      : 'hover:bg-slate-800 hover:text-white'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                  {item.name}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      {/* Navigation List in exact user requested order */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+        
+        {/* Top Navigation Items: Admin Dashboard, Analytics */}
+        <div>
+          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Main Portals
+          </p>
+          <ul className="space-y-1">
+            
+            {/* 1. Admin Dashboard */}
+            <li>
+              <Link 
+                href="/admin"
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                  pathname === '/admin' 
+                    ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs' 
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <LayoutDashboard className={`w-4 h-4 ${pathname === '/admin' ? 'text-[#16a34a]' : 'text-slate-400'}`} />
+                <span>Admin Dashboard</span>
+              </Link>
+            </li>
+
+            {/* 2. Analytics */}
+            <li>
+              <Link 
+                href="/admin/analytics"
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                  pathname === '/admin/analytics' 
+                    ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs' 
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <BarChart3 className={`w-4 h-4 ${pathname === '/admin/analytics' ? 'text-[#16a34a]' : 'text-slate-400'}`} />
+                <span>Analytics</span>
+              </Link>
+            </li>
+
+          </ul>
+        </div>
+
+        {/* Role-Based Portals: Requester, Contract Manager, Reviewer, Client */}
+        <div>
+          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Role Access
+          </p>
+          
+          <div className="space-y-1">
+
+            {/* 3. Requester */}
+            <Link 
+              href="/requestor"
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                pathname.startsWith('/requestor') 
+                  ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs' 
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                <Inbox className="w-3.5 h-3.5" />
+              </div>
+              <span>Requester</span>
+            </Link>
+            
+            {/* 4. Contract Manager (Expandable with side sub-pages) */}
+            <div className="space-y-1">
+              <button
+                onClick={() => setContractManagerOpen(!contractManagerOpen)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                  isContractManagerActive 
+                    ? 'bg-emerald-50/80 text-emerald-900 border border-emerald-200/60' 
+                    : 'text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <Briefcase className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Contract Manager</span>
+                </div>
+                {contractManagerOpen ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                )}
+              </button>
+
+              {/* Expandable Sub-pages */}
+              {contractManagerOpen && (
+                <ul className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-emerald-100 ml-5">
+                  {contractManagerSubItems.map((sub) => {
+                    const Icon = sub.icon;
+                    const isActive = pathname === sub.href || pathname.startsWith(sub.href + '/');
+                    return (
+                      <li key={sub.name}>
+                        <Link
+                          href={sub.href}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                            isActive
+                              ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                        >
+                          <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#16a34a]' : 'text-slate-400'}`} />
+                          <span>{sub.name}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* 5. Reviewer (Expandable with side sub-pages) */}
+            <div className="space-y-1">
+              <button
+                onClick={() => setReviewerOpen(!reviewerOpen)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                  isReviewerActive 
+                    ? 'bg-blue-50/80 text-blue-900 border border-blue-200/60' 
+                    : 'text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                    <UserCheck className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Reviewer</span>
+                </div>
+                {reviewerOpen ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                )}
+              </button>
+
+              {/* Expandable Sub-pages */}
+              {reviewerOpen && (
+                <ul className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-blue-100 ml-5">
+                  {reviewerSubItems.map((sub) => {
+                    const Icon = sub.icon;
+                    const isActive = pathname === sub.href || pathname.startsWith(sub.href + '/');
+                    return (
+                      <li key={sub.name}>
+                        <Link
+                          href={sub.href}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                            isActive
+                              ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                        >
+                          <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#16a34a]' : 'text-slate-400'}`} />
+                          <span>{sub.name}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* 6. Client */}
+            <Link 
+              href="/client"
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                pathname.startsWith('/client') 
+                  ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs' 
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
+                <User className="w-3.5 h-3.5" />
+              </div>
+              <span>Client</span>
+            </Link>
+
+          </div>
+        </div>
+
+        {/* Administration Section */}
+        <div>
+          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            System & Admin
+          </p>
+          <ul className="space-y-1">
+            {adminSystemItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                      isActive
+                        ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-[#16a34a]' : 'text-slate-400'}`} />
+                    <span>{item.name}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
       </nav>
+
     </aside>
   );
 }
