@@ -5,7 +5,7 @@ from typing import Tuple, Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from app.client.models import Contract, PortalInviteToken, ClientRedline, ClientSignature, Notification
+from app.client.models import ClientPortalContract as Contract, PortalInviteToken, ClientRedline, ClientSignature, Notification
 from app.client.schemas import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
 
 DEFAULT_CONTRACT_ID = "REQ-2026-0891"

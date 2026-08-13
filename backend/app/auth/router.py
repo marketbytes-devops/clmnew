@@ -77,8 +77,7 @@ def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get
 @router.post("/admin/users", response_model=schemas.UserResponse)
 def create_user_as_admin(
     user: schemas.AdminUserCreate, 
-    db: Session = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)
+    db: Session = Depends(get_db)
 ):
     # Check if user already exists
     db_user = db.query(models.User).filter(models.User.email == user.email).first()

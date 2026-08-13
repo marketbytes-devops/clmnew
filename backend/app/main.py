@@ -7,10 +7,7 @@ from sqlalchemy import text
 from app import database
 from app.models import user, contract, request
 from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests
-
-# Create tables if they don't exist yet
-# (Disabled because we use Alembic for migrations)
-# database.Base.metadata.create_all(bind=database.engine)
+from app.client.routes import router as client_router
 
 app = FastAPI(
     title="CLM Backend API",
@@ -21,7 +18,7 @@ app = FastAPI(
 # Enable CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allows all origins for local dev
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,32 +27,7 @@ app.add_middleware(
 # Register Client Portal Router
 app.include_router(client_router)
 
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(title="CLM API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include Routers
+# Include API v1 Routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(contracts.router, prefix="/api/v1/admin/contracts", tags=["contracts"])
