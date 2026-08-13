@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import api from "@/service/api";
+import api from "@/api/api";
 import { Clock, AlertTriangle, CheckCircle, Save, Send, BrainCircuit, Paperclip, ChevronRight, Check } from "lucide-react";
 import ResourceMatrix from "@/components/dependency/ResourceMatrix";
 

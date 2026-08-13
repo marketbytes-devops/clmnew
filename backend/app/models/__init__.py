@@ -1,5 +1,11 @@
-from . import user, contract, request, ai
-from .user import User, Role, Department, LoginHistory, ContractManager, DepartmentLead, Notification
-from .contract import Contract, ContractVersion, ContractAttachment, ContractTimeline
-from .request import ContractRequest, RequestAttachment, RequestComment, RequestTimeline, RequestDependency
-from .ai import AIConfiguration, AIPrompt, AIUsageLog
+from app.models.user import User, Department, Role
+from app.models.contract import Contract, ContractVersion, ContractAttachment, ContractTimeline
+from app.models.request import ContractRequest, RequestComment, RequestAttachment, RequestDependency
+from app.models.ai import AIPrompt, AIConfiguration, AIUsageLog
+
+__all__ = [
+    "User", "Department", "Role",
+    "Contract", "ContractVersion", "ContractAttachment", "ContractTimeline",
+    "ContractRequest", "RequestComment", "RequestAttachment", "RequestDependency",
+    "AIPrompt", "AIConfiguration", "AIUsageLog"
+]

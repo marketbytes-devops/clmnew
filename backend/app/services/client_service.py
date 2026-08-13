@@ -5,8 +5,13 @@ from typing import Tuple, Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
+<<<<<<< HEAD:backend/app/client/service.py
+from app.client.models import ClientPortalContract as Contract, PortalInviteToken, ClientRedline, ClientSignature, Notification
+from app.client.schemas import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
+=======
 from app.models.client import ClientContract, PortalInviteToken, ClientRedline, ClientSignature, ClientNotification
 from app.schemas.client import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
+>>>>>>> 7ca0c63fd39acedef4288b4e85c831bf61510776:backend/app/services/client_service.py
 
 DEFAULT_CONTRACT_ID = "REQ-2026-0891"
 DEFAULT_DEMO_TOKEN = "clm_invite_token_demo_2026_acme_corp"

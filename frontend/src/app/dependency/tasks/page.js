@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../../../components/common/Button";
-import api from "@/service/api";
+import api from "@/api/api";
 
 export default function MyDependencyTasks() {
   const router = useRouter();
@@ -23,6 +23,7 @@ export default function MyDependencyTasks() {
           const data = response.data;
           const mappedData = data.map(dep => ({
             ...dep,
+            token: dep.token || dep.accessToken || dep.access_token || dep.id,
             date: dep.createdAt ? new Date(dep.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             client: dep.brief?.clientName || "Unknown Client",
             task_objective: dep.taskObjective || dep.description || "Task",

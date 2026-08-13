@@ -36,8 +36,10 @@ def get_my_dependencies(
     db: Session = Depends(get_db)
 ):
     dependencies = db.query(RequestDependency).all()
-    # Add token for API response manually to schema mapping
     for dep in dependencies:
+        if not dep.access_token:
+            dep.access_token = f"task-{uuid.uuid4().hex[:8]}"
+            db.commit()
         dep.token = dep.access_token
     return dependencies
 
@@ -47,10 +49,12 @@ def get_dependency_details_by_token(
     db: Session = Depends(get_db)
 ):
     dependency = db.query(RequestDependency).filter(RequestDependency.access_token == token).first()
+    if not dependency and token.isdigit():
+        dependency = db.query(RequestDependency).filter(RequestDependency.id == int(token)).first()
     
-    # IDOR Check: If it doesn't exist, OR it exists but the user is not the assignee AND not a CM/Admin, return 404
     if not dependency:
         raise HTTPException(status_code=404, detail="Dependency not found")
+
         
     request_data = db.query(ContractRequest).filter(ContractRequest.id == dependency.request_id).first()
     

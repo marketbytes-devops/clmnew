@@ -161,18 +161,39 @@ export const APIService = {
 
   // --- ADMIN ---
   getAllUsers: async (token) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/users`);
-    if (!res.ok) throw new Error('Failed to fetch users');
-    return res.json();
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/admin/users`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (err) {
+      console.warn("Could not reach backend users service:", err.message);
+      return [];
+    }
   },
 
   createUser: async (userData) => {
+    const payload = {
+      email: userData.email,
+      password: userData.password || 'password123',
+      full_name: userData.name || userData.full_name,
+      is_active: true,
+      profile_picture_url: userData.avatar_url || userData.avatarUrl || null,
+      role_id: userData.role_id || null,
+      department_id: userData.department_id || null
+    };
+
     const res = await fetchWithTimeout(`${BASE_URL}/admin/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData)
+      body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error('Failed to create user');
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      const detail = errorData.detail || 'Failed to create user';
+      const msg = typeof detail === 'string' ? detail : JSON.stringify(detail);
+      throw new Error(msg);
+    }
     return res.json();
   },
 
