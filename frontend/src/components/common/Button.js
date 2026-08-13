@@ -17,12 +17,12 @@ export default function Button({
   const baseStyles = 'inline-flex items-center justify-center font-bold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none select-none';
   
   const variants = {
-    primary: 'bg-[#4f6e43] hover:bg-[#3d5733] text-white shadow-md shadow-[#4f6e43]/25 focus:ring-[#4f6e43]',
-    secondary: 'bg-white hover:bg-[#f2f7ef] text-[#2a3f23] border border-[#bed2b2] shadow-2xs focus:ring-[#93af85]',
-    outline: 'border-2 border-[#4f6e43] text-[#38522c] hover:bg-[#e7f1e1] focus:ring-[#4f6e43] font-black',
-    ghost: 'text-[#38522c] hover:bg-[#e7f1e1]/80 hover:text-[#1d2d16] focus:ring-[#93af85]',
-    danger: 'bg-[#b84343] hover:bg-[#993434] text-white shadow-sm shadow-[#b84343]/20 focus:ring-[#b84343]',
-    success: 'bg-[#3b5930] hover:bg-[#2b4222] text-white shadow-md shadow-[#3b5930]/30 focus:ring-[#4f6e43]',
+    primary: 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-xs focus:ring-[#16a34a]',
+    secondary: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs focus:ring-emerald-300',
+    outline: 'border-2 border-[#16a34a] text-[#16a34a] hover:bg-emerald-50 focus:ring-[#16a34a] font-bold',
+    ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-emerald-200',
+    danger: 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs focus:ring-rose-500',
+    success: 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-xs focus:ring-[#16a34a]',
   };
 
   const sizes = {

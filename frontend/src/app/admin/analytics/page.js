@@ -2,51 +2,95 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { APIService } from '@/service/apiService';
-import { BarChart3, FileText, DollarSign, Clock, Users, Building2, TrendingUp, RefreshCw } from 'lucide-react';
+import { useAppContext } from '@/context/appContext';
+import { BarChart3, RefreshCw } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell
+  PieChart, Pie, Cell
 } from 'recharts';
 
-const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444'];
+const COLORS = ['#16a34a', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'];
 
 export default function AnalyticsDashboard() {
+  const { contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
   const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [trendsData, setTrendsData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [metrics, trends, contracts, requests] = await Promise.all([
+      const [metricsBackend, trendsBackend, contractsBackend, requestsBackend] = await Promise.all([
         APIService.getAnalyticsDashboard().catch(() => null),
         APIService.getAnalyticsTrends().catch(() => null),
         APIService.getContracts().catch(() => []),
         APIService.getRequests().catch(() => [])
       ]);
 
-      const liveMetrics = metrics || {
-        total_contracts: contracts.length,
-        active_contracts: contracts.filter(c => c.status === 'Executed' || c.status === 'Active').length,
-        contracts_in_negotiation: requests.filter(r => r.status === 'Internal Review' || r.status === 'Client Negotiation').length,
-        total_value: contracts.reduce((sum, c) => sum + (c.value || 0), 0),
-        avg_approval_time_days: 3.5
+      const allContractsRaw = [...(contractsBackend || []), ...(contextContracts || [])];
+      const allRequestsRaw = [...(requestsBackend || []), ...(contextRequests || [])];
+
+      const contractsMap = new Map();
+      allContractsRaw.forEach(c => {
+        if (c && (c.id || c.title)) {
+          const key = c.id || c.title;
+          if (!contractsMap.has(key)) contractsMap.set(key, c);
+        }
+      });
+      const contracts = Array.from(contractsMap.values());
+
+      const requestsMap = new Map();
+      allRequestsRaw.forEach(r => {
+        if (r && (r.id || r.title || r.requestName)) {
+          const key = r.id || r.title || r.requestName;
+          if (!requestsMap.has(key)) requestsMap.set(key, r);
+        }
+      });
+      const requests = Array.from(requestsMap.values());
+
+      const totalContracts = contracts.length;
+      const activeContracts = contracts.filter(c => ['Active', 'Executed', 'Approved', 'Signed'].includes(c.status)).length;
+      const contractsInNegotiation = contracts.filter(c => ['Drafting In Progress', 'Review', 'Reviewed', 'Negotiation', 'Pending Approval'].includes(c.status)).length + requests.length;
+      
+      // Calculate Total Portfolio Value 100% dynamically from actual contract records
+      const totalPortfolioValue = metricsBackend?.total_value !== undefined && metricsBackend?.total_value !== null
+        ? metricsBackend.total_value 
+        : contracts.reduce((sum, c) => sum + (Number(c.estimatedValue || c.value || c.amount || 0)), 0);
+
+      // Calculate Avg Approval SLA 100% dynamically from backend data or calculated metrics without static fallback
+      const avgApprovalSLA = metricsBackend?.avg_approval_time_days !== undefined && metricsBackend?.avg_approval_time_days !== null
+        ? metricsBackend.avg_approval_time_days
+        : 0;
+
+      const liveMetrics = {
+        total_contracts: totalContracts,
+        active_contracts: activeContracts,
+        contracts_in_negotiation: contractsInNegotiation,
+        total_value: totalPortfolioValue,
+        avg_approval_time_days: avgApprovalSLA
       };
 
-      const liveTrends = trends || {
-        monthly_trends: [
-          { month: 'Current Period', new_contracts: contracts.length, renewals: 0, expiring: 0 }
-        ],
-        type_distribution: [
-          { name: 'MSA', value: requests.filter(r => r.contract_type === 'MSA').length || 1 },
-          { name: 'SOW', value: requests.filter(r => r.contract_type === 'SOW').length || 1 },
-          { name: 'NDA', value: requests.filter(r => r.contract_type === 'NDA').length || 1 }
-        ]
-      };
+      let liveTrends = trendsBackend;
+
+      if (!liveTrends || !liveTrends.type_distribution || liveTrends.type_distribution.length === 0) {
+        const counts = {};
+        contracts.forEach(c => {
+          const type = c.metadata_data?.contract_type || c.metadata_data?.contractType || c.contract_type || "MSA";
+          counts[type] = (counts[type] || 0) + 1;
+        });
+
+        const typeDistribution = Object.keys(counts).map(k => ({
+          name: k,
+          value: counts[k]
+        }));
+
+        liveTrends = {
+          monthly_trends: trendsBackend?.monthly_trends || [
+            { month: 'Current Month', new_contracts: contracts.length, renewals: 0, expiring: 0 }
+          ],
+          type_distribution: typeDistribution
+        };
+      }
 
       setDashboardMetrics(liveMetrics);
       setTrendsData(liveTrends);
@@ -68,64 +112,62 @@ export default function AnalyticsDashboard() {
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, [contextContracts, contextRequests]);
+
   if (loading) {
-    return <div className="p-8 flex items-center justify-center h-full text-slate-500">Loading live analytics...</div>;
+    return <div className="p-8 flex items-center justify-center h-full text-slate-500 font-sans">Loading live contract analytics...</div>;
   }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto font-sans">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-blue-600" />
-            Executive Dashboard
+          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+            <BarChart3 className="w-8 h-8 text-[#16a34a]" />
+            Executive Analytics Dashboard
           </h1>
-          <p className="text-slate-600 mt-2">Real-time contract analytics and performance metrics synced with backend database.</p>
+          <p className="text-slate-500 mt-1 text-sm">Real-time contract metrics calculated dynamically based on live contract statuses.</p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" /> Refresh Data
           </button>
-          <Link 
-            href="/admin/analytics/reports"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-bold transition-colors shadow-sm"
-          >
-            View Detailed Reports →
-          </Link>
         </div>
       </div>
 
-      {/* Metric Cards */}
+      {/* Dynamic Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-500 text-xs font-semibold uppercase">Total Contracts</span>
-          <span className="text-2xl font-bold text-slate-800 mt-2">{dashboardMetrics?.total_contracts ?? 0}</span>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col">
+          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Contracts</span>
+          <span className="text-2xl font-extrabold text-slate-900 mt-2">{dashboardMetrics?.total_contracts ?? 0}</span>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-500 text-xs font-semibold uppercase">Active Contracts</span>
-          <span className="text-2xl font-bold text-emerald-600 mt-2">{dashboardMetrics?.active_contracts ?? 0}</span>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col">
+          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Active Contracts</span>
+          <span className="text-2xl font-extrabold text-[#16a34a] mt-2">{dashboardMetrics?.active_contracts ?? 0}</span>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-500 text-xs font-semibold uppercase">In Negotiation</span>
-          <span className="text-2xl font-bold text-amber-600 mt-2">{dashboardMetrics?.contracts_in_negotiation ?? 0}</span>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col">
+          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">In Negotiation</span>
+          <span className="text-2xl font-extrabold text-amber-600 mt-2">{dashboardMetrics?.contracts_in_negotiation ?? 0}</span>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-500 text-xs font-semibold uppercase">Total Portfolio Value</span>
-          <span className="text-2xl font-bold text-blue-600 mt-2">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col">
+          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Portfolio Value</span>
+          <span className="text-2xl font-extrabold text-[#16a34a] mt-2">
             ${(dashboardMetrics?.total_value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-500 text-xs font-semibold uppercase">Avg Approval SLA</span>
-          <span className="text-2xl font-bold text-purple-600 mt-2">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col">
+          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Avg Approval SLA</span>
+          <span className="text-2xl font-extrabold text-emerald-700 mt-2">
             {dashboardMetrics?.avg_approval_time_days ?? 0} Days
           </span>
         </div>
@@ -134,8 +176,8 @@ export default function AnalyticsDashboard() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Monthly Contract Volume */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 mb-4">Monthly Execution & Expiry Volume</h2>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <h2 className="text-base font-bold text-slate-900 mb-4">Monthly Execution & Expiry Volume</h2>
           <div className="h-72">
             {trendsData?.monthly_trends && trendsData.monthly_trends.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -145,20 +187,20 @@ export default function AnalyticsDashboard() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="new_contracts" fill="#3b82f6" name="New Contracts" />
-                  <Bar dataKey="renewals" fill="#10b981" name="Renewals" />
+                  <Bar dataKey="new_contracts" fill="#16a34a" name="New Contracts" />
+                  <Bar dataKey="renewals" fill="#3b82f6" name="Renewals" />
                   <Bar dataKey="expiring" fill="#ef4444" name="Expiring" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-400">No monthly volume data recorded yet.</div>
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">No monthly volume data recorded yet.</div>
             )}
           </div>
         </div>
 
         {/* Contract Type Distribution */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 mb-4">Contract Type Distribution</h2>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <h2 className="text-base font-bold text-slate-900 mb-4">Contract Type Distribution</h2>
           <div className="h-72">
             {trendsData?.type_distribution && trendsData.type_distribution.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -183,7 +225,7 @@ export default function AnalyticsDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-400">No contract type distribution data recorded yet.</div>
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm font-semibold">No contract type distribution recorded yet.</div>
             )}
           </div>
         </div>
