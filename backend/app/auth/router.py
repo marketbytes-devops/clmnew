@@ -175,7 +175,6 @@ def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get
         "user": db_user
     }
 
-<<<<<<< HEAD
 @router.post("/admin/users", response_model=schemas.UserResponse)
 def create_user_as_admin(
     user: schemas.AdminUserCreate, 
@@ -203,9 +202,6 @@ def create_user_as_admin(
     db.refresh(new_user)
     
     return new_user
-
-=======
->>>>>>> 7ca0c63fd39acedef4288b4e85c831bf61510776
 @router.post("/refresh", response_model=schemas.TokenRefreshResponse)
 def refresh_token(
     response: Response,

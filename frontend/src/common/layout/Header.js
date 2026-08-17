@@ -1,12 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-<<<<<<< HEAD
-import { Search, Bell, Calendar, ChevronDown, Menu } from 'lucide-react';
-
-export default function Header() {
-  const [dateRange, setDateRange] = useState('May 12 – May 18, 2025');
-=======
-import { Search, Bell, Calendar, Settings, User, ChevronDown } from 'lucide-react';
+import { Search, Bell, Calendar, Settings, User, ChevronDown, Menu } from 'lucide-react';
 import { useAppContext } from '../../context/appContext';
 import { useRouter } from 'next/navigation';
 
@@ -14,6 +8,7 @@ export default function Header() {
   const { user, switchUserRole, MOCK_USERS } = useAppContext();
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dateRange, setDateRange] = useState('May 12 – May 18, 2025');
 
   const handleUserChange = (userId) => {
     const newUser = switchUserRole(userId);
@@ -30,7 +25,6 @@ export default function Header() {
       }
     }
   };
->>>>>>> 7ca0c63fd39acedef4288b4e85c831bf61510776
 
   return (
     <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-6 sticky top-0 z-10 shadow-2xs">
@@ -75,19 +69,6 @@ export default function Header() {
         
         <div className="h-6 w-px bg-slate-200 mx-1"></div>
         
-<<<<<<< HEAD
-        {/* User Profile Pill matching screenshot (Sanket Kumar / Admin) */}
-        <div className="flex items-center gap-2.5 p-1 rounded-xl cursor-pointer">
-          <div className="w-9 h-9 bg-emerald-100 text-emerald-800 font-bold text-xs rounded-full flex items-center justify-center border border-emerald-200 shadow-2xs">
-            SK
-          </div>
-          <div className="text-left hidden sm:block">
-            <p className="font-bold text-xs text-slate-900 leading-tight">Sanket Kumar</p>
-            <p className="text-[11px] text-slate-400 font-medium leading-tight mt-0.5">Admin</p>
-          </div>
-        </div>
-
-=======
         {/* User Switcher Dropdown */}
         <div className="relative">
           <button 
@@ -136,7 +117,6 @@ export default function Header() {
             </div>
           )}
         </div>
->>>>>>> 7ca0c63fd39acedef4288b4e85c831bf61510776
       </div>
       
     </header>
