@@ -8,7 +8,7 @@ import PrimaryButton from '../../../common/buttons/PrimaryButton';
 import { APIService } from '../../../service/apiService';
 import { useAppContext } from '../../../context/appContext';
 
-const MODULES = ['Contracts', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'];
+const MODULES = ['Contracts', 'Contract Management', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'];
 const ACTIONS = ['View', 'Create', 'Edit', 'Delete', 'Approve', 'Reject', 'Archive', 'Restore', 'Export', 'Import', 'Assign'];
 
 const getDefaultPermissionsMatrix = () => {
@@ -51,7 +51,7 @@ export default function UsersList() {
 
     // Step 3 — Role & Permissions
     role: 'Contract Manager',
-    modules: ['Contracts', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'],
+    modules: ['Contracts', 'Contract Management', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'],
     permissionLevel: 'Standard Edit',
     specificPermissions: ['Create Contracts', 'Approve Requests', 'Edit Clauses', 'Export Reports'],
     approvalAuthority: '$100,000',
@@ -74,7 +74,7 @@ export default function UsersList() {
       reportingManager: 'Elena Rostova (General Counsel)',
       workLocation: 'New York Corporate HQ',
       role: 'Contract Manager',
-      modules: ['Contracts', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'],
+      modules: ['Contracts', 'Contract Management', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'],
       permissionLevel: 'Standard Edit',
       specificPermissions: ['Create Contracts', 'Approve Requests', 'Edit Clauses', 'Export Reports'],
       approvalAuthority: '$100,000',
