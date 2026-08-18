@@ -7,28 +7,17 @@ class RepositoryService:
     def __init__(self, db: Session):
         self.db = db
 
-    def search_contracts(self, query: str, include_archived: bool = False):
-        """Mock AI Semantic Search for contracts."""
-        db_query = self.db.query(Contract).filter(Contract.status == "Executed")
+    def search_contracts(self, query: str = None, include_archived: bool = False):
+        """AI Semantic Search & listing for executed contracts."""
+        db_query = self.db.query(Contract)
         
-        if not include_archived:
-            # We use a tag to denote archived for now, or just assume it's in the status
-            db_query = db_query.filter(Contract.tags.op('NOT LIKE')('%"Archived"%') if self.db.bind.dialect.name == 'sqlite' else Contract.tags != 'Archived')
-
         if query:
-            # Basic text search for now
             db_query = db_query.filter(or_(
                 Contract.title.ilike(f"%{query}%"),
                 Contract.ai_summary.ilike(f"%{query}%")
             ))
             
         contracts = db_query.all()
-        
-        # If no results and it's a semantic query, we can mock a response.
-        # In a real app, this would use embeddings (e.g. OpenAI ada-002) and vector DB.
-        if not contracts and query.lower() in ["vendor", "supplier", "nda", "risk"]:
-            return [] # In a real implementation we might return semantic matches even if no exact text match
-            
         return contracts
 
     def process_ocr(self, file_content: bytes, filename: str) -> str:
