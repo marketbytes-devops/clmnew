@@ -23,13 +23,17 @@ const getDefaultPermissionsMatrix = () => {
 };
 
 export default function UsersList() {
-  const { users: contextUsers, addUser, saveUsersLocally } = useAppContext();
+  const { users: contextUsers, departments: contextDepartments, addUser, saveUsersLocally } = useAppContext();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [availableDepartments, setAvailableDepartments] = useState([
+    'Legal Operations', 'Sales & Commercial', 'Finance & Procurement', 
+    'Software Engineering', 'Human Resources (HR)', 'Executive Management'
+  ]);
 
   // 3-Step Wizard Form State
   const [formData, setFormData] = useState({
@@ -85,7 +89,10 @@ export default function UsersList() {
   const fetchUsersData = async () => {
     setLoading(true);
     try {
-      const data = await APIService.getAllUsers().catch(() => []);
+      const [data, deptsData] = await Promise.all([
+        APIService.getAllUsers().catch(() => []),
+        APIService.getDepartments().catch(() => [])
+      ]);
       
       const map = new Map();
       (data || []).forEach(u => {
@@ -97,6 +104,13 @@ export default function UsersList() {
 
       const combinedList = Array.from(map.values());
       setUsers(combinedList);
+
+      // Dynamically assemble all available departments
+      const deptsMap = new Map();
+      ['Legal Operations', 'Sales & Commercial', 'Finance & Procurement', 'Software Engineering', 'Human Resources (HR)', 'Executive Management'].forEach(d => deptsMap.set(d.toLowerCase(), d));
+      (deptsData || []).forEach(d => { if (d && d.name) deptsMap.set(d.name.toLowerCase(), d.name); });
+      (contextDepartments || []).forEach(d => { if (d && d.name) deptsMap.set(d.name.toLowerCase(), d.name); });
+      setAvailableDepartments(Array.from(deptsMap.values()));
     } catch (err) {
       console.error("Failed to fetch users from backend", err);
       setUsers(contextUsers || []);
@@ -107,7 +121,7 @@ export default function UsersList() {
 
   useEffect(() => {
     fetchUsersData();
-  }, [contextUsers]);
+  }, [contextUsers, contextDepartments]);
 
   const handleCreateUserSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -529,12 +543,9 @@ export default function UsersList() {
                         onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                       >
-                        <option value="Legal Operations">Legal Operations</option>
-                        <option value="Sales & Commercial">Sales & Commercial</option>
-                        <option value="Finance & Procurement">Finance & Procurement</option>
-                        <option value="Software Engineering">Software Engineering</option>
-                        <option value="Human Resources (HR)">Human Resources (HR)</option>
-                        <option value="Executive Management">Executive Management</option>
+                        {availableDepartments.map(dept => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
                       </select>
                     </div>
                   </div>

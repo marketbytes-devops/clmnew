@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Menu, LogOut, FileCheck, User as UserIcon, Settings as SettingsIcon } from 'lucide-react';
+import { Search, Bell, Calendar, Settings, User, ChevronDown, Menu, LogOut, FileCheck, User as UserIcon, Settings as SettingsIcon } from 'lucide-react';
 import { useAppContext } from '../../context/appContext';
 import { useRouter, usePathname } from 'next/navigation';
 import UserProfileModal from '../../components/common/UserProfileModal';

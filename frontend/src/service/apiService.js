@@ -541,6 +541,15 @@ export const APIService = {
 
   resetClientDemo: async () => {
     return await post('/api/client/reset-demo');
+  },
+
+  getContractManagerDashboard: async () => {
+    try {
+      return await get('/api/v1/cm/dashboard');
+    } catch (err) {
+      console.warn("Could not reach CM dashboard endpoint:", err.message);
+      return null;
+    }
   }
 };
 

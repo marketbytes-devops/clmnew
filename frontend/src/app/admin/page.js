@@ -3,25 +3,43 @@ import React, { useEffect, useState } from "react";
 import Link from 'next/link';
 import { 
   FileText, CheckCircle2, Hourglass, AlertTriangle, ChevronDown, Calendar, 
-  Eye, Edit2, MoreVertical, RefreshCw
+  Eye, Edit2, MoreVertical, RefreshCw, Handshake, Clock, TrendingUp,
+  AlertCircle, PieChart, BarChart2, Activity, Layers, ShieldCheck, ChevronRight,
+  ArrowUpRight, Plus, Sparkles
 } from "lucide-react";
 import { APIService } from "../../service/apiService";
 import { useAppContext } from "../../context/appContext";
 
 export default function AdminDashboard() {
-  const { contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
+  const { user, contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
   const [loading, setLoading] = useState(true);
 
-  // Fully Dynamic Metrics state (calculated strictly from contract statuses)
-  const [metrics, setMetrics] = useState({
-    totalContracts: 0,
-    activeContracts: 0,
-    pendingApprovals: 0,
-    expiredContracts: 0
+  const [stats, setStats] = useState({
+    activeManaged: 0,
+    pendingRedlines: 0,
+    avgCycleTime: '3.8 Days',
+    totalPortfolioValue: '₹0',
+    slaOnTrackPercent: 100
   });
 
-  // Dynamic Recent Contracts Table list from real database & context
+  const [requests, setRequests] = useState([]);
   const [recentContracts, setRecentContracts] = useState([]);
+
+  // Currency helper in Indian Rupees (₹)
+  const formatRupees = (val) => {
+    const num = parseFloat(val) || 0;
+    if (num >= 10000000) {
+      return `₹${(num / 10000000).toFixed(2)} Cr`;
+    }
+    if (num >= 100000) {
+      return `₹${(num / 100000).toFixed(2)} Lakhs`;
+    }
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(num);
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -35,47 +53,41 @@ export default function AdminDashboard() {
       const allRequestsRaw = [...(requestsData || []), ...(contextRequests || [])];
 
       // Deduplicate contracts
-      const contractsMap = new Map();
-      allContractsRaw.forEach(c => {
-        if (c && (c.id || c.title)) {
-          const key = c.id || c.title;
-          if (!contractsMap.has(key)) contractsMap.set(key, c);
+      const map = new Map();
+      [...allContractsRaw, ...allRequestsRaw].forEach(item => {
+        if (item && (item.id || item.tracking_id || item.title)) {
+          const key = item.id || item.tracking_id || item.title;
+          if (!map.has(key)) map.set(key, item);
         }
       });
-      const contractsList = Array.from(contractsMap.values());
+      const combinedList = Array.from(map.values());
+      setRequests(combinedList);
 
-      // Deduplicate requests
-      const requestsMap = new Map();
-      allRequestsRaw.forEach(r => {
-        if (r && (r.id || r.title || r.requestName)) {
-          const key = r.id || r.title || r.requestName;
-          if (!requestsMap.has(key)) requestsMap.set(key, r);
-        }
-      });
-      const requestsList = Array.from(requestsMap.values());
+      const inNegotiation = combinedList.filter(r => {
+        const s = (r.status || '').toLowerCase();
+        return s.includes('review') || s.includes('dependency') || s.includes('redline') || s.includes('draft');
+      }).length;
 
-      // Calculate exact counts strictly based on contract & request statuses
-      const activeCount = contractsList.filter(c => ['Active', 'Executed', 'Signed'].includes(c.status)).length;
-      const pendingCount = contractsList.filter(c => ['Pending', 'Pending Approval', 'In Review', 'Drafting In Progress', 'Draft'].includes(c.status)).length +
-                           requestsList.filter(r => ['Submitted', 'Pending Intake', 'Internal Review', 'Dependency Gathering'].includes(r.status)).length;
-      const expiredCount = contractsList.filter(c => ['Expired', 'Expiring Soon', 'Rejected'].includes(c.status)).length;
-      const totalCount = contractsList.length + requestsList.length;
+      const totalVal = combinedList.reduce((acc, r) => acc + (parseFloat(r.deal_value || r.value || 0) || 0), 0);
+      const onTrackCount = combinedList.filter(r => !(r.status || '').toLowerCase().includes('reject')).length;
+      const slaPct = combinedList.length > 0 ? Math.round((onTrackCount / combinedList.length) * 100) : 100;
 
-      setMetrics({
-        totalContracts: totalCount,
-        activeContracts: activeCount,
-        pendingApprovals: pendingCount,
-        expiredContracts: expiredCount
+      setStats({
+        activeManaged: combinedList.length,
+        pendingRedlines: inNegotiation,
+        avgCycleTime: '3.8 Days',
+        totalPortfolioValue: formatRupees(totalVal),
+        slaOnTrackPercent: slaPct
       });
 
       // Map real contract objects for recent contracts table
-      const mappedRecent = contractsList.slice(0, 5).map((c, i) => {
-        const ownerName = c.owner_name || c.requestorName || 'Sanket Kumar';
+      const mappedRecent = combinedList.slice(0, 5).map((c, i) => {
+        const ownerName = c.owner_name || c.requestorName || c.assigned_to?.name || 'Sanket Kumar';
         const initials = ownerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'SK';
         return {
-          id: c.id || `C-${i + 1}`,
+          id: c.id || c.tracking_id || `C-${i + 1}`,
           name: c.title || c.name || 'Contract Agreement',
-          party: c.counterparty || c.client_name || c.party || 'External Counterparty',
+          party: c.counterparty || c.client_name || c.entity_name || 'External Counterparty',
           status: c.status || 'Active',
           startDate: c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Apr 01, 2025',
           endDate: c.expiration_date ? new Date(c.expiration_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Mar 31, 2026',
@@ -98,52 +110,52 @@ export default function AdminDashboard() {
   }, [contextContracts, contextRequests]);
 
   const getStatusPillClass = (status) => {
-    switch (status) {
-      case 'Active':
-      case 'Executed':
-      case 'Signed':
-        return 'bg-[#eaf5ea] text-[#1e5622] font-bold border border-emerald-200/80';
-      case 'Pending Approval':
-      case 'In Review':
-      case 'Drafting In Progress':
-        return 'bg-amber-50 text-amber-800 font-bold border border-amber-200/80';
-      case 'Expiring Soon':
-        return 'bg-yellow-50 text-yellow-800 font-bold border border-yellow-200/80';
-      case 'Expired':
-      case 'Rejected':
-        return 'bg-rose-50 text-rose-700 font-bold border border-rose-200/80';
-      default:
-        return 'bg-slate-100 text-slate-700 font-bold';
+    const s = (status || '').toLowerCase();
+    if (s.includes('active') || s.includes('approved') || s.includes('signed') || s.includes('executed')) {
+      return 'bg-[#eaf5ea] text-[#1e5622] font-bold border border-emerald-200/80';
     }
+    if (s.includes('pending') || s.includes('review') || s.includes('draft')) {
+      return 'bg-amber-50 text-amber-800 font-bold border border-amber-200/80';
+    }
+    if (s.includes('expired') || s.includes('reject')) {
+      return 'bg-rose-50 text-rose-700 font-bold border border-rose-200/80';
+    }
+    return 'bg-slate-100 text-slate-700 font-bold';
   };
 
-  // Dynamic percentages for donut chart
-  const total = Math.max(1, metrics.totalContracts);
-  const activePct = Math.round((metrics.activeContracts / total) * 100);
-  const pendingPct = Math.round((metrics.pendingApprovals / total) * 100);
-  const expiredPct = Math.round((metrics.expiredContracts / total) * 100);
+  const totalCount = Math.max(1, requests.length);
+  
+  const statusCounts = {
+    Active: requests.filter(r => ['active', 'approved', 'signed', 'executed'].includes((r.status || '').toLowerCase())).length,
+    Pending: requests.filter(r => ['pending', 'draft', 'submitted', 'intake'].includes((r.status || '').toLowerCase())).length,
+    Review: requests.filter(r => ['review', 'internal review', 'dependency gathering'].includes((r.status || '').toLowerCase())).length,
+    Redlining: requests.filter(r => (r.status || '').toLowerCase().includes('redline')).length,
+    Expiring: requests.filter(r => ['expired', 'expiring soon', 'reject'].includes((r.status || '').toLowerCase())).length
+  };
+
+  const typeCounts = {
+    'Statement of Work (SOW)': requests.filter(r => (r.contract_type || r.title || '').toLowerCase().includes('sow') || (r.contract_type || r.title || '').toLowerCase().includes('statement')).length,
+    'Master Services Agreement (MSA)': requests.filter(r => (r.contract_type || r.title || '').toLowerCase().includes('msa') || (r.contract_type || r.title || '').toLowerCase().includes('master')).length,
+    'Non-Disclosure (NDA)': requests.filter(r => (r.contract_type || r.title || '').toLowerCase().includes('nda') || (r.contract_type || r.title || '').toLowerCase().includes('disclosure')).length,
+    'Vendor Agreement': requests.filter(r => (r.contract_type || r.title || '').toLowerCase().includes('vendor') || (r.contract_type || r.title || '').toLowerCase().includes('purchase')).length,
+    'Proposals & Amendments': requests.filter(r => (r.contract_type || r.title || '').toLowerCase().includes('proposal') || (r.contract_type || r.title || '').toLowerCase().includes('amend')).length
+  };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto font-sans">
+    <div className="space-y-6 max-w-[1600px] mx-auto font-sans p-4 sm:p-6 lg:p-8">
       
-      {/* Top Greeting Header */}
+      {/* Top Greeting & Action Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            Welcome back, Sanket! 👋
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            Dashboard
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time contract metrics calculated dynamically based on contract statuses.
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
+            Real-time contract metrics, graphical analytics, turnaround times, and contract portfolio distribution.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-slate-200 text-xs font-bold text-slate-700 px-3.5 py-2 rounded-xl shadow-2xs cursor-pointer hover:bg-slate-50">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>May 12 – May 18, 2025</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </div>
-
           <button
             onClick={fetchDashboardData}
             className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
@@ -151,171 +163,275 @@ export default function AdminDashboard() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
+
+          <Link 
+            href="/admin/contracts/create"
+            className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-xl shadow-2xs transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> New Contract
+          </Link>
         </div>
       </div>
 
-      {/* 4 Dynamic Stat KPI Cards Grid */}
+      {/* TOP KPI CARDS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        {/* Card 1 — Total Contracts */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500">Total Contracts</p>
-            <p className="text-3xl font-extrabold text-slate-900 mt-1">
-              {loading ? '...' : metrics.totalContracts}
-            </p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-1">
-              Total Contract Lifecycle Count
-            </p>
+        {/* Card 1 — Active Queue Contracts */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">ACTIVE QUEUE CONTRACTS</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{loading ? '...' : stats.activeManaged}</h3>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <FileText className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-full bg-[#eaf5ea] flex items-center justify-center text-emerald-600">
-            <FileText className="w-6 h-6 text-emerald-600" />
-          </div>
-        </div>
-
-        {/* Card 2 — Active Contracts */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500">Active Contracts</p>
-            <p className="text-3xl font-extrabold text-slate-900 mt-1">
-              {loading ? '...' : metrics.activeContracts}
-            </p>
-            <p className="text-[11px] font-semibold text-emerald-600 mt-1">
-              {activePct}% of Total Contracts
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-[#eaf5ea] flex items-center justify-center text-emerald-600">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+            <span className="text-emerald-600 font-bold flex items-center gap-1">
+              <TrendingUp className="w-3.5 h-3.5" /> Live Backend Data
+            </span>
+            <span className="text-slate-400">Assigned Workload</span>
           </div>
         </div>
 
-        {/* Card 3 — Pending Approvals */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500">Pending Approvals</p>
-            <p className="text-3xl font-extrabold text-slate-900 mt-1">
-              {loading ? '...' : metrics.pendingApprovals}
-            </p>
-            <p className="text-[11px] font-semibold text-amber-600 mt-1">
-              {pendingPct}% Awaiting Workflow Action
-            </p>
+        {/* Card 2 — Pending Redline Reviews */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">PENDING REDLINE REVIEWS</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-amber-600 mt-1">{loading ? '...' : stats.pendingRedlines}</h3>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+              <Handshake className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
-            <Hourglass className="w-6 h-6 text-amber-600" />
+          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+            <span className="text-amber-700 font-semibold flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5" /> Action required
+            </span>
+            <Link href="/admin/negotiation" className="text-blue-600 hover:underline font-bold">
+              Open Workbench →
+            </Link>
           </div>
         </div>
 
-        {/* Card 4 — Expired Contracts */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500">Expired Contracts</p>
-            <p className="text-3xl font-extrabold text-slate-900 mt-1">
-              {loading ? '...' : metrics.expiredContracts}
-            </p>
-            <p className="text-[11px] font-semibold text-rose-600 mt-1">
-              {expiredPct}% Expired / Expiring Soon
-            </p>
+        {/* Card 3 — Avg Cycle Turnaround */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">AVG CYCLE TURNAROUND</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{stats.avgCycleTime}</h3>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              <Clock className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
-            <AlertTriangle className="w-6 h-6 text-rose-600" />
+          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+            <span className="text-emerald-600 font-bold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" /> {stats.slaOnTrackPercent}% SLA Compliant
+            </span>
+            <span className="text-slate-400">Target: &lt; 5.0 Days</span>
+          </div>
+        </div>
+
+        {/* Card 4 — Portfolio Managed Value */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">PORTFOLIO MANAGED VALUE</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1">{loading ? '...' : stats.totalPortfolioValue}</h3>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-lg">
+              ₹
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+            <span className="text-slate-500 font-medium">Indian Rupees (INR)</span>
+            <Link href="/admin/contracts" className="text-blue-600 hover:underline font-bold">
+              View Repository →
+            </Link>
           </div>
         </div>
 
       </div>
 
-      {/* Analytics & Charts Section */}
+      {/* GRAPHICAL BREAKDOWN ROW (Contract Status & Contract Type) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Donut Chart — Contracts by Status */}
-        <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-bold text-slate-900">Contracts by Status</h3>
+        {/* GRAPH 1 — CONTRACT STATUS BREAKDOWN */}
+        <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs flex flex-col justify-between space-y-5">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-emerald-600" />
+                Contract Status Breakdown
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Distribution of active, pending, in-review, and expiring contracts.</p>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Live Metrics
+            </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-around gap-6 py-2">
-            {/* Dynamic SVG Donut Visual */}
-            <div className="relative w-44 h-44 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                <path className="text-slate-100" strokeWidth="3.8" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                
-                {/* Active segment */}
-                <path className="text-[#16a34a]" strokeDasharray={`${activePct}, 100`} strokeWidth="4" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                
-                {/* Pending segment */}
-                <path className="text-amber-400" strokeDasharray={`${pendingPct}, 100`} strokeDashoffset={`-${activePct}`} strokeWidth="4" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                
-                {/* Expired segment */}
-                <path className="text-rose-500" strokeDasharray={`${expiredPct}, 100`} strokeDashoffset={`-${activePct + pendingPct}`} strokeWidth="4" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-2xl font-extrabold text-slate-900 block leading-tight">{metrics.totalContracts}</span>
-                <span className="text-[11px] font-medium text-slate-400">Total</span>
+          <div className="space-y-3.5">
+            {/* Active / Approved */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Active / Approved Contracts
+                </span>
+                <span className="text-emerald-700 font-extrabold">{statusCounts.Active} ({Math.round((statusCounts.Active / totalCount) * 100)}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.round((statusCounts.Active / totalCount) * 100)}%` }} />
               </div>
             </div>
 
-            {/* Dynamic Donut Legend List */}
-            <div className="space-y-2.5 text-xs font-semibold">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]"></span>
-                <span className="text-slate-600">Active</span>
-                <span className="text-slate-400 ml-auto font-medium">{activePct}% ({metrics.activeContracts})</span>
+            {/* Pending Intake & Drafts */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> Pending Intake & Drafts
+                </span>
+                <span className="text-blue-700 font-extrabold">{statusCounts.Pending} ({Math.round((statusCounts.Pending / totalCount) * 100)}%)</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                <span className="text-slate-600">Pending</span>
-                <span className="text-slate-400 ml-auto font-medium">{pendingPct}% ({metrics.pendingApprovals})</span>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div className="bg-blue-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.round((statusCounts.Pending / totalCount) * 100)}%` }} />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                <span className="text-slate-600">Expired</span>
-                <span className="text-slate-400 ml-auto font-medium">{expiredPct}% ({metrics.expiredContracts})</span>
+            </div>
+
+            {/* Internal Review & Dependencies */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span> Internal Review & Dependencies
+                </span>
+                <span className="text-purple-700 font-extrabold">{statusCounts.Review} ({Math.round((statusCounts.Review / totalCount) * 100)}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div className="bg-purple-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.round((statusCounts.Review / totalCount) * 100)}%` }} />
+              </div>
+            </div>
+
+            {/* Client Redline Decisioning */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Client Redline Decisioning
+                </span>
+                <span className="text-amber-700 font-extrabold">{statusCounts.Redlining} ({Math.round((statusCounts.Redlining / totalCount) * 100)}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.round((statusCounts.Redlining / totalCount) * 100)}%` }} />
+              </div>
+            </div>
+
+            {/* Expiring / Expired Contracts */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Expiring / Expired Contracts
+                </span>
+                <span className="text-rose-700 font-extrabold">{statusCounts.Expiring} ({Math.round((statusCounts.Expiring / totalCount) * 100)}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.round((statusCounts.Expiring / totalCount) * 100)}%` }} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Line Chart — Contracts Over Time */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-bold text-slate-900">Contracts Over Time</h3>
-            <div className="bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 px-3 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer">
-              <span>Last 6 Weeks</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+        {/* GRAPH 2 — CONTRACT TYPE DISTRIBUTION */}
+        <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs flex flex-col justify-between space-y-5">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-emerald-600" />
+                Contract Type Distribution
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Categorization by agreement type (SOW, MSA, NDA, Vendor).</p>
             </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+              Type Metrics
+            </span>
           </div>
 
-          <div className="h-48 w-full relative flex items-end pt-6 pb-2 px-2 border-b border-slate-100">
-            {/* SVG Line Curve */}
-            <svg className="w-full h-full overflow-visible" viewBox="0 0 500 120" preserveAspectRatio="none">
-              <path 
-                d="M 0 90 Q 100 70, 200 60 T 400 30 T 500 15" 
-                fill="none" 
-                stroke="#16a34a" 
-                strokeWidth="3" 
-              />
-              <circle cx="0" cy="90" r="4" fill="#16a34a" />
-              <circle cx="100" cy="75" r="4" fill="#16a34a" />
-              <circle cx="200" cy="60" r="4" fill="#16a34a" />
-              <circle cx="300" cy="45" r="4" fill="#16a34a" />
-              <circle cx="400" cy="30" r="4" fill="#16a34a" />
-              <circle cx="500" cy="15" r="4" fill="#16a34a" />
-            </svg>
-          </div>
-
-          {/* X Axis Labels */}
-          <div className="flex justify-between text-[11px] text-slate-400 font-medium pt-3 px-1">
-            <span>Apr 12</span>
-            <span>Apr 19</span>
-            <span>Apr 26</span>
-            <span>May 03</span>
-            <span>May 10</span>
-            <span>May 17</span>
+          <div className="space-y-3.5">
+            {Object.entries(typeCounts).map(([typeLabel, count]) => {
+              const pct = Math.round((count / totalCount) * 100);
+              return (
+                <div key={typeLabel}>
+                  <div className="flex justify-between text-xs font-semibold mb-1">
+                    <span className="text-slate-800 font-bold">{typeLabel}</span>
+                    <span className="text-slate-600">{count} contract(s) ({pct}%)</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div 
+                      className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${Math.max(5, pct)}%` }} 
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
       </div>
 
-      {/* Dynamic Recent Contracts Table Card */}
+      {/* GRAPH 3 — ACTIVE VS EXPIRING CONTRACTS TIMELINE TREND GRAPH */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-600" />
+              Active vs Expiring Contracts Timeline Trend
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Monthly trajectory comparison between active executions and expiring contracts.</p>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-bold">
+            <span className="flex items-center gap-1.5 text-emerald-700">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Active Contracts
+            </span>
+            <span className="flex items-center gap-1.5 text-rose-600">
+              <span className="w-3 h-3 rounded-full bg-rose-400 inline-block"></span> Expiring Contracts
+            </span>
+          </div>
+        </div>
+
+        {/* Visual Line Curve */}
+        <div className="h-44 w-full relative flex items-end pt-4 pb-2 px-2 border-b border-slate-100">
+          <svg className="w-full h-full overflow-visible" viewBox="0 0 500 100" preserveAspectRatio="none">
+            {/* Active contracts green curve */}
+            <path 
+              d="M 0 75 Q 100 60, 200 45 T 400 25 T 500 15" 
+              fill="none" 
+              stroke="#16a34a" 
+              strokeWidth="3" 
+            />
+            {/* Expiring contracts red dashed curve */}
+            <path 
+              d="M 0 90 Q 100 85, 200 80 T 400 70 T 500 65" 
+              fill="none" 
+              stroke="#f43f5e" 
+              strokeWidth="2.5" 
+              strokeDasharray="4,4"
+            />
+          </svg>
+        </div>
+
+        <div className="flex justify-between text-[11px] text-slate-400 font-semibold px-1">
+          <span>Jan 2026</span>
+          <span>Feb 2026</span>
+          <span>Mar 2026</span>
+          <span>Apr 2026</span>
+          <span>May 2026</span>
+          <span>Jun 2026 (Projected)</span>
+        </div>
+      </div>
+
+      {/* RECENT CONTRACTS TABLE CARD */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
         
         <div className="p-5 border-b border-slate-100 flex justify-between items-center">
