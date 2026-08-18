@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { 
   PenTool, Clock, CheckCircle2, AlertTriangle, Sparkles, Layers, 
   DollarSign, Calendar, Plus, Trash2, ArrowRight, ShieldCheck, RefreshCw, 
@@ -13,6 +13,8 @@ import { useAppContext } from '../../../context/appContext';
 
 export default function DraftingWorkspacePage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const basePath = pathname?.startsWith('/cm') ? '/cm' : '/admin';
   const { contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [draftContracts, setDraftContracts] = useState([]);
@@ -351,7 +353,7 @@ export default function DraftingWorkspacePage() {
       }
       alert(`Contract "${selectedContract?.title}" locked and transitioned to Review! Status updated to "Review".`);
       await loadDraftingData();
-      router.push('/admin/review');
+      router.push(`${basePath}/review`);
     } catch (err) {
       console.error("Failed to transition contract to review", err);
       alert("Failed to transition contract: " + (err.message || "Unknown error"));

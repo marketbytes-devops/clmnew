@@ -14,6 +14,7 @@ router = APIRouter()
 # For now, we'll use a broad check, but later this will link to the new permissions matrix
 allow_repo_access = RoleChecker(["Admin", "Legal", "Contract_Manager"])
 
+@router.get("/", response_model=List[ContractOut])
 @router.get("/search", response_model=List[ContractOut])
 def search_repository(
     query: Optional[str] = None,
@@ -21,7 +22,7 @@ def search_repository(
     db: Session = Depends(get_db)
     # dependencies=[Depends(allow_repo_access)]
 ):
-    """Semantic search over executed contracts in the repository."""
+    """Semantic search or list executed contracts in the repository."""
     service = RepositoryService(db)
     return service.search_contracts(query, include_archived)
 

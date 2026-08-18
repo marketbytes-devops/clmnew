@@ -46,9 +46,13 @@ export default function Header() {
     if (pathname.includes('/dependency/history')) return 'Completed Tasks History';
     if (pathname.includes('/dependency/')) return 'Task Portal Brief';
     if (pathname === '/dependency') return 'Dashboard';
-    if (pathname.includes('/admin/requests')) return 'Requests / Intake';
-    if (pathname.includes('/admin/contracts')) return 'Contracts';
-    if (pathname.includes('/admin/drafting')) return 'Drafting';
+    if (pathname.includes('/cm/contracts') || pathname.includes('/admin/contracts')) return 'Contracts';
+    if (pathname.includes('/cm/requests') || pathname.includes('/admin/requests')) return 'Requests / Intake';
+    if (pathname.includes('/cm/review') || pathname.includes('/admin/review')) return 'Approvals & Review';
+    if (pathname.includes('/cm/drafting') || pathname.includes('/admin/drafting')) return 'Drafting';
+    if (pathname.includes('/cm/negotiation') || pathname.includes('/admin/negotiation')) return 'Negotiation';
+    if (pathname.includes('/cm/repository') || pathname.includes('/admin/repository')) return 'Repository';
+    if (pathname === '/cm') return 'Contracts';
     if (pathname.includes('/requestor/requests')) return 'My Requests';
     return 'Dashboard';
   };

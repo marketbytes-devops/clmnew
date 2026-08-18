@@ -38,6 +38,8 @@ app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 app.include_router(contracts.router, prefix="/api/v1/admin/contracts", tags=["contracts"])
+app.include_router(contracts.router, prefix="/api/admin/contracts", tags=["contracts"])
+app.include_router(contracts.router, prefix="/admin/contracts", tags=["contracts"])
 
 app.include_router(users.router, prefix="/api/v1/admin/users", tags=["users"])
 

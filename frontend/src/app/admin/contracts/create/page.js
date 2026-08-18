@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { 
   FileText, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, 
   Plus, Trash2, ShieldCheck, DollarSign, Calendar, Upload, Bot, RefreshCw, 
@@ -170,6 +170,8 @@ const CONTRACT_TAXONOMY = {
 
 export default function ContractCreationWizardPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const basePath = pathname?.startsWith('/cm') ? '/cm' : '/admin';
   const { addContract, fetchContracts } = useAppContext();
   const [currentStep, setCurrentStep] = useState(1);
   const [maxReachedStep, setMaxReachedStep] = useState(1);
@@ -573,7 +575,7 @@ export default function ContractCreationWizardPage() {
         await fetchContracts();
       }
       alert("Success! Contract v0.1 Initial Draft created and saved. Transitioning to Drafting Workspace...");
-      router.push('/admin/drafting');
+      router.push(`${basePath}/drafting`);
     } catch (err) {
       console.error("Failed to generate contract draft:", err);
       alert(`Failed to generate contract draft: ${err.message || 'Unknown error'}`);
@@ -657,7 +659,7 @@ export default function ContractCreationWizardPage() {
               Save Draft
             </button>
             <Link
-              href="/admin/contracts"
+              href={`${basePath}/contracts`}
               className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors"
             >
               Exit Wizard

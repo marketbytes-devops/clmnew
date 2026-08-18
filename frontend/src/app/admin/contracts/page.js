@@ -3,10 +3,13 @@ import React, { useState } from 'react';
 import { Search, Filter, MoreVertical, Plus, X } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import { useAppContext } from '../../../context/appContext';
 
 export default function ContractsList() {
+  const pathname = usePathname();
+  const basePath = pathname.startsWith('/cm') ? '/cm' : '/admin';
   const { contracts, fetchContracts, addContract } = useAppContext();
   const [selectedIds, setSelectedIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,8 +55,8 @@ export default function ContractsList() {
         </div>
         <div className="flex gap-3">
           <Link
-            href="/admin/contracts/create"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
+            href={`${basePath}/contracts/create`}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-2xs"
           >
             <Plus className="w-4 h-4" /> New Contract
           </Link>
@@ -117,7 +120,7 @@ export default function ContractsList() {
                     />
                   </td>
                   <td className="p-4">
-                    <Link href={`/admin/contracts/${contract.id}`} className="font-semibold text-blue-600 hover:underline block">
+                    <Link href={`${basePath}/contracts/${contract.id}`} className="font-semibold text-emerald-700 hover:underline block">
                       {contract.title}
                     </Link>
                     <span className="text-xs text-gray-400">Updated {new Date(contract.updated_at).toLocaleDateString()}</span>
