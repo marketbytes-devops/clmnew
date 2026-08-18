@@ -2,7 +2,13 @@ import os
 import io
 import json
 import pypdf
-from google import genai
+try:
+    from google import genai
+except ImportError:
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        genai = None
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from app.models.ai import AIConfiguration, AIUsageLog

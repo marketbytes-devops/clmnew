@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from app import database
 from app.models import user, contract, request
-from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests, client, dependencies
+from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests, client, dependencies, cm
 from app.api.v1.portal import router as portal_router
 
 app = FastAPI(
@@ -55,6 +55,9 @@ app.include_router(requests.router, prefix="/api/v1/requests", tags=["requests"]
 app.include_router(requests.router, prefix="/api/contracts/requests", tags=["requests"])
 
 app.include_router(dependencies.router, prefix="/api/v1")
+
+# Register Contract Manager Router
+app.include_router(cm.router)
 
 # Portal Router for general Requester Portal features (/metrics, /notifications, /managers, /leads)
 app.include_router(portal_router, prefix="/api/contracts", tags=["portal"])
