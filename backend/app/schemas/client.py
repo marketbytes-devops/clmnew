@@ -22,6 +22,15 @@ class SignatureSubmitRequest(BaseModel):
     signer_name: str
     signer_title: str
     signature_data: str
+    signatory_type: Optional[str] = "CLIENT"
+    audit_sha256: Optional[str] = None
+
+class CountersignSubmitRequest(BaseModel):
+    contract_id: str
+    signer_name: str = "Sarah Jenkins"
+    signer_title: str = "Contract Manager & Authorized Signatory"
+    signature_data: str
+    audit_sha256: Optional[str] = None
 
 class RedlineItemResponse(BaseModel):
     id: int
@@ -37,9 +46,11 @@ class RedlineItemResponse(BaseModel):
         from_attributes = True
 
 class SignatureResponse(BaseModel):
+    signatory_type: Optional[str] = "CLIENT"
     signer_name: str
     signer_title: str
     signature_data: Optional[str] = None
+    sha256_hash: Optional[str] = None
     ip_address: Optional[str] = None
     signed_at: datetime
 
@@ -65,6 +76,8 @@ class ContractClientResponse(BaseModel):
     expires_at: datetime
     redlines: List[RedlineItemResponse] = []
     signature: Optional[SignatureResponse] = None
+    client_signature: Optional[SignatureResponse] = None
+    company_signature: Optional[SignatureResponse] = None
     is_readonly: bool = False
 
 class RedlineActionItem(BaseModel):

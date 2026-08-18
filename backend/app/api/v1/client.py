@@ -9,6 +9,7 @@ from app.schemas.client import (
     PasscodeVerifyRequest,
     RedlinesSubmitRequest,
     SignatureSubmitRequest,
+    CountersignSubmitRequest,
     RedispatchRequest,
     NotificationResponse
 )
@@ -102,11 +103,32 @@ def sign_contract(
     db: Session = Depends(get_db)
 ):
     """
-    Execute client e-signature. Re-validates token.
-    State transitions -> EXECUTED and locks token against future redline/sign writes.
+    Execute client e-signature. State transitions -> CLIENT_SIGNED.
     """
     client_ip = request.client.host if request.client else "127.0.0.1"
     result = client_service.execute_client_signature(db, request_data=body, client_ip=client_ip)
+    return result
+
+@router.post("/countersign")
+def countersign_contract(
+    body: CountersignSubmitRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Execute Admin / Company countersignature.
+    State transitions -> EXECUTED and locks contract permanently.
+    """
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    result = client_service.execute_company_countersign(
+        db=db,
+        contract_id=body.contract_id,
+        signer_name=body.signer_name,
+        signer_title=body.signer_title,
+        signature_data=body.signature_data,
+        audit_sha256=body.audit_sha256,
+        client_ip=client_ip
+    )
     return result
 @router.get("/negotiation/{contract_id}")
 def get_cm_negotiation(

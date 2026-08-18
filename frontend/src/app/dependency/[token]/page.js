@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import api from "@/api/api";
-import { Clock, AlertTriangle, CheckCircle, Save, Send, BrainCircuit, Paperclip, ChevronRight, Check } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, Save, Send, BrainCircuit, Paperclip, ChevronRight, Check, ArrowLeft, X } from "lucide-react";
 import ResourceMatrix from "@/components/dependency/ResourceMatrix";
 
 export default function DependencyPortal() {
   const { token } = useParams();
+  const router = useRouter();
   const [activeTask, setActiveTask] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -137,26 +138,36 @@ export default function DependencyPortal() {
   const total_hours = resources.reduce((sum, r) => sum + (r.hours * r.count), 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 flex flex-col w-full max-w-full">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold">Dependency Request: {dependency.task_objective}</h1>
-            <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded-md ${isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-              {dependency.status}
-            </span>
-            <span className="px-2 py-0.5 text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 rounded-md">
-              URGENT
-            </span>
-            <span className="px-2 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200 rounded-md">
-              REQ-2026-0891
-            </span>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => router.back()}
+            title="Go Back"
+            className="p-2.5 text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer shadow-2xs shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5 text-slate-700" />
+          </button>
+
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-lg font-extrabold text-slate-900 tracking-tight">Dependency Request: {dependency.task_objective}</h1>
+              <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded-md ${isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                {dependency.status}
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 rounded-md">
+                URGENT
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200 rounded-md">
+                REQ-2026-0891
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 font-medium">
+              <Clock className="w-4 h-4 text-orange-500" /> 
+              <span className="text-orange-600 font-semibold">{dependency.sla_deadline ? `Due in: ${dependency.sla_deadline}` : "No SLA Deadline"}</span>
+            </p>
           </div>
-          <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-orange-500" /> 
-            <span className="text-orange-600 font-semibold">{dependency.sla_deadline ? `Due in: ${dependency.sla_deadline}` : "No SLA Deadline"}</span>
-          </p>
         </div>
       </header>
 

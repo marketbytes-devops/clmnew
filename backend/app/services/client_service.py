@@ -5,13 +5,8 @@ from typing import Tuple, Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-<<<<<<< HEAD:backend/app/client/service.py
-from app.client.models import ClientPortalContract as Contract, PortalInviteToken, ClientRedline, ClientSignature, Notification
-from app.client.schemas import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
-=======
-from app.models.client import ClientContract, PortalInviteToken, ClientRedline, ClientSignature, ClientNotification
+from app.models.client import ClientPortalContract as Contract, ClientContract, PortalInviteToken, ClientRedline, ClientSignature, ClientNotification
 from app.schemas.client import RedlinesSubmitRequest, SignatureSubmitRequest, RedispatchRequest
->>>>>>> 7ca0c63fd39acedef4288b4e85c831bf61510776:backend/app/services/client_service.py
 
 DEFAULT_CONTRACT_ID = "REQ-2026-0891"
 DEFAULT_DEMO_TOKEN = "clm_invite_token_demo_2026_acme_corp"
@@ -167,12 +162,18 @@ def get_client_contract_payload(db: Session, token_str: str, passcode: Optional[
                 "content_json": {},
                 "redlines": [],
                 "signature": None,
+                "client_signature": None,
+                "company_signature": None,
                 "is_readonly": False
             }
 
     content_data = json.loads(contract_obj.content_json) if contract_obj.content_json else {}
     redlines = db.query(ClientRedline).filter(ClientRedline.contract_id == contract_obj.id).all()
-    signature_record = db.query(ClientSignature).filter(ClientSignature.contract_id == contract_obj.id).first()
+    
+    signatures = db.query(ClientSignature).filter(ClientSignature.contract_id == contract_obj.id).all()
+    client_sig = next((s for s in signatures if s.signatory_type == "CLIENT"), None) or (signatures[0] if signatures else None)
+    company_sig = next((s for s in signatures if s.signatory_type == "COMPANY"), None)
+    
     is_readonly = (contract_obj.status == "EXECUTED")
 
     return {
@@ -193,17 +194,19 @@ def get_client_contract_payload(db: Session, token_str: str, passcode: Optional[
         "is_passcode_verified": True,
         "expires_at": token_obj.expires_at,
         "redlines": redlines,
-        "signature": signature_record,
+        "signature": client_sig,
+        "client_signature": client_sig,
+        "company_signature": company_sig,
         "is_readonly": is_readonly
     }
 
 def add_client_redlines(db: Session, request_data: RedlinesSubmitRequest):
     token_obj, contract_obj = validate_portal_token(db, request_data.token)
 
-    if contract_obj.status == "EXECUTED":
+    if contract_obj.status in ["CLIENT_SIGNED", "EXECUTED"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="ClientContract has already been executed and signed."
+            detail="Contract has already been signed by the client and is locked against modifications."
         )
 
     new_redlines = []
@@ -221,7 +224,6 @@ def add_client_redlines(db: Session, request_data: RedlinesSubmitRequest):
 
     contract_obj.status = "CLIENT_NEGOTIATION"
 
-    # Create ClientNotification for ClientContract Manager
     notification = ClientNotification(
         contract_id=contract_obj.id,
         recipient_role="CM",
@@ -236,30 +238,31 @@ def add_client_redlines(db: Session, request_data: RedlinesSubmitRequest):
 def execute_client_signature(db: Session, request_data: SignatureSubmitRequest, client_ip: str = "127.0.0.1"):
     token_obj, contract_obj = validate_portal_token(db, request_data.token)
 
-    if contract_obj.status == "EXECUTED":
+    if contract_obj.status in ["CLIENT_SIGNED", "EXECUTED"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This contract has already been signed and executed."
+            detail="This contract has already been signed by the client."
         )
 
     signature_record = ClientSignature(
         contract_id=contract_obj.id,
+        signatory_type="CLIENT",
         signer_name=request_data.signer_name,
         signer_title=request_data.signer_title,
         signature_data=request_data.signature_data,
+        sha256_hash=request_data.audit_sha256,
         ip_address=client_ip,
         signed_at=datetime.utcnow()
     )
     db.add(signature_record)
 
-    contract_obj.status = "EXECUTED"
+    contract_obj.status = "CLIENT_SIGNED"
 
-    # Create ClientNotification for ClientContract Manager
     notification = ClientNotification(
         contract_id=contract_obj.id,
         recipient_role="CM",
-        title=f"ClientContract Executed ({contract_obj.client_name})",
-        message=f"{request_data.signer_name} ({request_data.signer_title}) has signed {contract_obj.title} ({contract_obj.version})."
+        title=f"Client Signed ({contract_obj.client_name}) — Awaiting Countersign",
+        message=f"{request_data.signer_name} ({request_data.signer_title}) has signed {contract_obj.title} ({contract_obj.version}). Please review and countersign."
     )
     db.add(notification)
 
@@ -267,10 +270,60 @@ def execute_client_signature(db: Session, request_data: SignatureSubmitRequest, 
 
     return {
         "status": "success",
-        "message": "ClientContract successfully signed and executed!",
+        "message": "Contract successfully signed by client! Pending company countersignature.",
         "contract_id": contract_obj.id,
         "signer_name": request_data.signer_name,
         "signed_at": signature_record.signed_at
+    }
+
+def execute_company_countersign(db: Session, contract_id: str, signer_name: str, signer_title: str, signature_data: str, audit_sha256: Optional[str] = None, client_ip: str = "127.0.0.1"):
+    contract_obj = db.query(ClientContract).filter(ClientContract.id == contract_id).first()
+    if not contract_obj:
+        contract_obj, _ = create_or_get_demo_contract(db)
+
+    if contract_obj.status == "EXECUTED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This contract has already been fully executed and signed by both parties."
+        )
+
+    company_sig = ClientSignature(
+        contract_id=contract_obj.id,
+        signatory_type="COMPANY",
+        signer_name=signer_name,
+        signer_title=signer_title,
+        signature_data=signature_data,
+        sha256_hash=audit_sha256,
+        ip_address=client_ip,
+        signed_at=datetime.utcnow()
+    )
+    db.add(company_sig)
+
+    contract_obj.status = "EXECUTED"
+
+    # Create completion notifications for CM and Client
+    cm_notif = ClientNotification(
+        contract_id=contract_obj.id,
+        recipient_role="CM",
+        title=f"Contract Executed ({contract_obj.client_name})",
+        message=f"{contract_obj.title} is now fully executed by both Client & Company. Executed PDF dispatched to {contract_obj.client_email} and Admin."
+    )
+    client_notif = ClientNotification(
+        contract_id=contract_obj.id,
+        recipient_role="CLIENT",
+        title="Contract Fully Executed & Sealed",
+        message=f"Your contract {contract_obj.title} has been countersigned by MarketBytes Enterprise. Fully executed copy emailed."
+    )
+    db.add_all([cm_notif, client_notif])
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "Company countersignature successfully applied! Contract is now EXECUTED and locked.",
+        "contract_id": contract_obj.id,
+        "signer_name": signer_name,
+        "signed_at": company_sig.signed_at
     }
 
 def get_cm_negotiation_payload(db: Session, contract_id: str):

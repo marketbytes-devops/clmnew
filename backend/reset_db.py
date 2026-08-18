@@ -13,11 +13,11 @@ from app.core.security import get_password_hash
 from app.models import (
     User, Role, Department, LoginHistory, ContractManager, DepartmentLead, Notification,
     Contract, ContractVersion, ContractAttachment, ContractTimeline,
-    ContractRequest, RequestAttachment, RequestComment, RequestTimeline, RequestDependency,
+    ContractRequest, RequestAttachment, RequestComment, RequestDependency,
     AIConfiguration, AIPrompt, AIUsageLog
 )
-from app.client.models import (
-    ClientContract, PortalInviteToken, ClientRedline, ClientSignature, ClientNotification
+from app.models.client import (
+    ClientPortalContract, ClientContract, PortalInviteToken, ClientRedline, ClientSignature, ClientNotification
 )
 
 def reset_and_seed_db():
