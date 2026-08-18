@@ -352,7 +352,7 @@ export default function ContractCreationWizardPage() {
         { name: 'Quarterly Project Milestones', description: 'Deliver quarterly product roadmap Epics', owner: partyInfo.candidateName, timeline: 'Quarterly' }
       ]);
 
-      const baseVal = isUnpaidInternship ? 0 : parseFloat(commercialInfo.baseSalary) || (commercialInfo.baseSalary === '' ? 0 : 1200000);
+      const baseVal = parseFloat(commercialInfo.baseSalary) || 1200000;
       setMilestones([
         { name: 'Day 1 IT & HR Orientation', deliverable: 'Laptop Setup & Benefits Enrollment', startDate: '2026-09-01', endDate: '2026-09-01', percentage: 10, amount: (baseVal * 0.1), department: 'HR & IT', status: 'Planned' },
         { name: '30-Day Initial Performance Review', deliverable: 'First Sprint Delivery Signoff', startDate: '2026-09-02', endDate: '2026-10-01', percentage: 20, amount: (baseVal * 0.2), department: 'Engineering', status: 'Planned' },
@@ -372,7 +372,7 @@ export default function ContractCreationWizardPage() {
       const fName = partyInfo.firstPartyName || 'MarketBytes CLM Corp';
       const sName = partyInfo.secondPartyName || 'Client Entity';
       const jur = contractInfo.jurisdiction || 'India (New Delhi / Mumbai)';
-      const totalVal = isUnpaidInternship ? 0 : parseFloat(commercialInfo.totalValue) || (commercialInfo.totalValue === '' ? 0 : 750000);
+      const totalVal = parseFloat(commercialInfo.totalValue) || 750000;
 
       setClauses([
         { id: 'confidentiality', category: 'Confidentiality', text: `Both parties, ${fName} and ${sName}, agree to protect proprietary information for a period of 5 years following disclosure.`, risk: 'Low Risk', standard: true },
@@ -388,7 +388,7 @@ export default function ContractCreationWizardPage() {
         { name: 'Final Delivery & Acceptance Signoff', deliverable: 'Production Deployment & Acceptance', startDate: '2026-10-11', endDate: '2026-10-31', percentage: 30, amount: (totalVal * 30) / 100, department: 'DevOps & QA', status: 'Planned' }
       ]);
     }
-  }, [contractInfo.category, contractInfo.contractType, contractInfo.title, partyInfo.candidateName, partyInfo.secondPartyName, commercialInfo.totalValue, commercialInfo.baseSalary]);
+  }, [contractInfo.category, contractInfo.contractType, contractInfo.title, partyInfo.candidateName, partyInfo.secondPartyName]);
 
   // 3-Tier Classification Handlers
   const handleCategoryChange = (newCat) => {
@@ -1446,26 +1446,6 @@ export default function ContractCreationWizardPage() {
                       : 'Define project phases and commercial payment percentages.'}
                   </p>
                 </div>
-
-                {/* Dynamic Commercial Calculation Summary Banner */}
-                {(!isUnpaidInternship) && (
-                  <div className="bg-emerald-50/60 border border-emerald-200/90 rounded-xl p-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
-                    <div>
-                      <span className="font-semibold text-slate-600 block">Total Commercial Valuation (From Step 3)</span>
-                      <span className="text-base font-extrabold text-slate-900">
-                        ₹{(parseFloat(isHiringContract ? commercialInfo.baseSalary : commercialInfo.totalValue) || 0).toLocaleString()} INR
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="sm:text-right">
-                        <span className="font-semibold text-slate-600 block">Scheduled Milestone Sum</span>
-                        <span className="text-sm font-extrabold text-emerald-700">
-                          ₹{milestones.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0).toLocaleString()} INR ({milestones.reduce((acc, m) => acc + (parseFloat(m.percentage) || 0), 0)}%)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-semibold text-slate-700">

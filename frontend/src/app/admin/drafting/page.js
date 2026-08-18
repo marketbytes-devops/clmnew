@@ -13,7 +13,7 @@ import { useAppContext } from '../../../context/appContext';
 
 export default function DraftingWorkspacePage() {
   const router = useRouter();
-  const { contracts: contextContracts, contractRequests: contextRequests, addContract } = useAppContext();
+  const { contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [draftContracts, setDraftContracts] = useState([]);
   
@@ -321,6 +321,8 @@ export default function DraftingWorkspacePage() {
     const updated = [...milestones];
     updated[index][field] = value;
     setMilestones(updated);
+  };
+
   const handleProceedToReview = async () => {
     if (!scopeApprovalChecked) {
       alert("Please confirm the Scope Approval Checkpoint before proceeding.");
@@ -328,32 +330,26 @@ export default function DraftingWorkspacePage() {
     }
     setSaving(true);
     try {
-      const payload = {
-        title: selectedContract.title || editTitle,
-        status: 'Internal Review',
-        value: parseFloat(finalPricing) || selectedContract.value || 0,
-        metadata_data: {
-          ...(selectedContract.metadata_data || {}),
-          payment_schedule: paymentSchedule,
-          milestones: milestones,
-          scope_approval_checkpoint: scopeApprovalChecked,
-          counterparty: editEntityName || selectedContract.entity_name,
-          category: editCategory || selectedContract.category,
-          contractType: editContractType || selectedContract.contract_type
-        }
-      };
-
       if (selectedContract.is_real_contract) {
-        await APIService.updateContract(selectedContract.id, payload).catch(() => {});
+        const payload = {
+          status: 'Review',
+          value: parseFloat(finalPricing) || selectedContract.value || 0,
+          metadata_data: {
+            ...(selectedContract.metadata_data || {}),
+            payment_schedule: paymentSchedule,
+            milestones: milestones,
+            scope_approval_checkpoint: scopeApprovalChecked
+          }
+        };
+        await APIService.updateContract(selectedContract.id, payload);
       } else {
-        await APIService.createContract(payload).catch(() => {});
+        await APIService.proceedToDrafting(selectedContract.id, {
+          final_commercial_pricing: parseFloat(finalPricing) || 0,
+          payment_schedule: paymentSchedule,
+          status: 'Review'
+        }).catch(() => {});
       }
-
-      if (addContract) {
-        await addContract(payload).catch(() => {});
-      }
-
-      alert(`Contract "${selectedContract?.title}" locked and transitioned to Review! Status updated to "Internal Review".`);
+      alert(`Contract "${selectedContract?.title}" locked and transitioned to Review! Status updated to "Review".`);
       await loadDraftingData();
       router.push('/admin/review');
     } catch (err) {

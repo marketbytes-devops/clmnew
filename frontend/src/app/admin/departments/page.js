@@ -258,7 +258,15 @@ export default function DepartmentsList() {
                   <div>
                     <span className="text-gray-400 block uppercase text-[10px]">Team Members</span>
                     <span className="font-bold text-gray-900 flex items-center gap-1 mt-0.5">
-                      <Users className="w-3.5 h-3.5 text-gray-500" /> {dept.members || 0}
+                      <Users className="w-3.5 h-3.5 text-gray-500" /> {
+                        Math.max(
+                          Array.isArray(dept.members) ? dept.members.length : (typeof dept.members === 'number' ? dept.members : 0),
+                          availableUsers.filter(u => {
+                            const uDept = typeof u.department === 'object' && u.department !== null ? u.department.name : u.department;
+                            return uDept && (uDept || '').toLowerCase() === (dept.name || '').toLowerCase();
+                          }).length
+                        )
+                      }
                     </span>
                   </div>
                   <div>
