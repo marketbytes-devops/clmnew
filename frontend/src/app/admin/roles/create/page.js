@@ -5,7 +5,7 @@ import { APIService } from '@/service/apiService';
 import { Save, ArrowLeft, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 
-const MODULES = ['Contracts', 'Contract Management', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'];
+const MODULES = ['Contracts', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'];
 const ACTIONS = ['View', 'Create', 'Edit', 'Delete', 'Approve', 'Reject', 'Archive', 'Restore', 'Export', 'Import', 'Assign'];
 
 function RoleCreateForm() {

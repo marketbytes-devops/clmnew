@@ -243,6 +243,77 @@ export const AppProvider = ({ children }) => {
       }
       return updated;
     });
+
+    // Automatically sync user details into matching department if department exists (or create department)
+    let rawDept = newUser.department;
+    let deptName = '';
+    if (typeof rawDept === 'object' && rawDept !== null) {
+      deptName = rawDept.name || rawDept.title || rawDept.code || '';
+    } else if (typeof rawDept === 'string') {
+      deptName = rawDept;
+    }
+    deptName = (deptName || '').trim();
+
+    if (deptName) {
+      setDepartments(prevDepts => {
+        let deptsList = Array.isArray(prevDepts) ? [...prevDepts] : [];
+        if (typeof window !== 'undefined' && deptsList.length === 0) {
+          const stored = localStorage.getItem('clm_custom_departments');
+          if (stored) {
+            try { deptsList = JSON.parse(stored); } catch (e) {}
+          }
+        }
+
+        const targetLower = deptName.toLowerCase();
+        let deptIndex = deptsList.findIndex(d => {
+          const dName = (d.name || '').trim().toLowerCase();
+          const dCode = (d.code || '').trim().toLowerCase();
+          return dName === targetLower || dCode === targetLower || (dName && dName.includes(targetLower)) || (targetLower && targetLower.includes(dName));
+        });
+
+        const memberObj = {
+          id: newUser.id || Date.now(),
+          name: newUser.full_name || newUser.name || newUser.email,
+          email: newUser.email,
+          role: typeof newUser.role === 'object' && newUser.role !== null ? newUser.role.name : (newUser.role || 'Member'),
+          designation: newUser.designation || newUser.title || 'Staff Member'
+        };
+
+        if (deptIndex !== -1) {
+          const targetDept = deptsList[deptIndex];
+          const existingMembers = Array.isArray(targetDept.members) ? targetDept.members : [];
+          const userAlreadyMember = existingMembers.some(m => String(m.email || m.id).toLowerCase() === String(newUser.email || newUser.id).toLowerCase());
+          
+          if (!userAlreadyMember) {
+            const updatedMembers = [...existingMembers, memberObj];
+            const updatedDept = {
+              ...targetDept,
+              members: updatedMembers,
+              membersCount: updatedMembers.length
+            };
+            deptsList[deptIndex] = updatedDept;
+          }
+        } else {
+          // If department does not exist in array yet, create department object so user is not lost!
+          const newDeptObj = {
+            id: Date.now(),
+            name: deptName,
+            code: deptName.slice(0, 6).toUpperCase(),
+            description: `${deptName} Department`,
+            head: 'Unassigned',
+            status: 'Active',
+            members: [memberObj],
+            membersCount: 1
+          };
+          deptsList.push(newDeptObj);
+        }
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('clm_custom_departments', JSON.stringify(deptsList));
+        }
+        return deptsList;
+      });
+    }
   };
 
   const [departments, setDepartments] = useState(() => {
@@ -307,47 +378,14 @@ export const AppProvider = ({ children }) => {
     setRoles([]);
   };
 
-  const [contracts, setContracts] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('clm_custom_contracts');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [];
-  });
+  const [contracts, setContracts] = useState([]);
 
-  const saveContractsLocally = (updated) => {
-    setContracts(updated);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('clm_custom_contracts', JSON.stringify(updated));
-    }
-  };
-
-  // Fetch contracts from the backend & merge with local contracts
+  // Fetch contracts from the backend
   const fetchContracts = async () => {
     try {
       const { APIService } = await import('../service/apiService');
-      const backendData = await APIService.getContracts().catch(() => []);
-      
-      let localSaved = [];
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('clm_custom_contracts');
-        if (saved) {
-          try { localSaved = JSON.parse(saved); } catch (e) {}
-        }
-      }
-
-      const combined = [...(Array.isArray(backendData) ? backendData : []), ...localSaved];
-      const map = new Map();
-      combined.forEach(c => {
-        if (c && (c.id || c.title)) {
-          const key = c.id || c.title;
-          if (!map.has(key)) map.set(key, c);
-        }
-      });
-      const result = Array.from(map.values());
-      saveContractsLocally(result);
+      const data = await APIService.getContracts();
+      setContracts(data);
     } catch (err) {
       console.error("Failed to fetch contracts", err);
     }
@@ -355,36 +393,27 @@ export const AppProvider = ({ children }) => {
 
   // Add a new contract
   const addContract = async (contractData) => {
-    let createdItem = null;
     try {
       const { APIService } = await import('../service/apiService');
-      createdItem = await APIService.createContract(contractData);
+      const newContract = await APIService.createContract(contractData);
+      if (newContract) {
+        setContracts(prev => [newContract, ...prev]);
+      }
+      return newContract;
     } catch (err) {
       console.warn("Failed to create contract on backend, creating local draft", err);
-    }
-
-    if (!createdItem || !createdItem.id) {
-      createdItem = {
+      const mockContract = {
         id: Date.now(),
         title: contractData.title || 'Untitled Contract Agreement',
         status: contractData.status || 'Drafting In Progress',
         value: contractData.value || 0,
         ai_summary: contractData.ai_summary || '',
         metadata_data: contractData.metadata_data || {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: new Date().toISOString()
       };
+      setContracts(prev => [mockContract, ...prev]);
+      return mockContract;
     }
-
-    setContracts(prev => {
-      const updated = [createdItem, ...prev.filter(c => c.id !== createdItem.id && c.title !== createdItem.title)];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('clm_custom_contracts', JSON.stringify(updated));
-      }
-      return updated;
-    });
-
-    return createdItem;
   };
 
   const [requests, setRequests] = useState([]);
