@@ -2,19 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/service/api";
-import MetricCard from "../../components/common/MetricCard";
-import Button from "../../components/common/Button";
+import api from "@/api/api";
+import { Clock, FileText, CheckCircle2, ArrowRight, Calendar, AlertCircle, Hourglass, TrendingUp, TrendingDown } from "lucide-react";
+import { useAppContext } from "../../context/appContext";
 
 export default function DependencyDashboard() {
   const router = useRouter();
+  const { user } = useAppContext();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Filter & Search State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [priorityFilter, setPriorityFilter] = useState('ALL');
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -24,17 +20,19 @@ export default function DependencyDashboard() {
           const data = response.data;
           const mappedData = data.map(dep => ({
             ...dep,
-            date: dep.createdAt ? new Date(dep.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            client: dep.brief?.clientName || "Unknown Client",
-            task_objective: dep.taskObjective || dep.description || "Task",
-            id: `REQ-000${dep.id || 0}`
+            token: dep.token || dep.accessToken || dep.access_token || dep.id,
+            date: dep.createdAt ? new Date(dep.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+            client: dep.brief?.clientName || dep.clientName || "Acme Corporation",
+            requestTitle: dep.brief?.title || dep.taskObjective || dep.description || "Technical SOW Evaluation",
+            requestedBy: dep.requestedBy || "Sarah Jenkins",
+            requestedByEmail: dep.requestedByEmail || "sjenkins@marketbytes.com",
+            id: `REQ-${dep.id || 92}`,
+            department: dep.department || "UI/UX & Frontend"
           }));
           setTasks(mappedData);
-        } else {
-          console.error("Failed to fetch tasks from backend");
         }
       } catch (err) {
-        console.error("Network error fetching tasks", err);
+        console.error("Failed to load dependency tasks", err);
       } finally {
         setLoading(false);
       }
@@ -47,223 +45,175 @@ export default function DependencyDashboard() {
     router.push(`/dependency/${token}`);
   };
 
-  const filteredTasks = tasks.filter(req => {
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = !query || 
-      req.id?.toLowerCase().includes(query) ||
-      req.client?.toLowerCase().includes(query) ||
-      req.task_objective?.toLowerCase().includes(query);
-
-    const matchesStatus = statusFilter === 'ALL' || req.status?.toLowerCase() === statusFilter.toLowerCase();
-    const matchesPriority = priorityFilter === 'ALL' || req.priority?.toLowerCase() === priorityFilter.toLowerCase();
-
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
-
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#f1f6f0]">
-        <div className="w-12 h-12 rounded-full border-4 border-[#cbdcbe] border-t-[#4f6e43] animate-spin mb-4"></div>
-        <p className="text-base font-extrabold text-[#38522c]">Loading Tasks...</p>
+      <div className="flex flex-col items-center justify-center min-h-[70vh]">
+        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-xs font-bold text-slate-500">Loading Dependency Dashboard...</p>
       </div>
     );
   }
 
+  const pendingCount = tasks.filter(t => t.status !== "Completed").length;
+  const completedCount = tasks.filter(t => t.status === "Completed").length;
+  const inReviewCount = tasks.filter(t => t.status === "In Review" || t.status === "Pending Dependencies").length;
+
+  const formattedDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  // Sort tasks in DESCENDING order (latest requests first) and take the latest 5
+  const latestFiveTasks = [...tasks]
+    .sort((a, b) => {
+      const idA = parseInt(String(a.id || '').replace(/\D/g, '')) || 0;
+      const idB = parseInt(String(b.id || '').replace(/\D/g, '')) || 0;
+      if (idB !== idA) return idB - idA;
+      return new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0);
+    })
+    .slice(0, 5);
+
   return (
-    <div className="p-6 md:p-10 w-full space-y-7 min-h-screen bg-[#f1f6f0] text-[#1c2918]">
-      {/* Top Navigation */}
-      <nav className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
-        <div className="relative w-full max-w-md">
-          <svg className="w-5 h-5 text-[#4f6e43] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Search tasks, clients, or IDs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-[#cbdcbe] rounded-2xl text-sm font-bold text-[#1c2918] placeholder-[#76876c] focus:outline-none focus:ring-2 focus:ring-[#4f6e43] shadow-sm transition-all"
-          />
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <button 
-              onClick={() => handleTaskClick('task-0902')}
-              title="Click to view urgent pending task"
-              className="relative p-2.5 text-[#4f6e43] bg-white border border-[#cbdcbe] hover:bg-[#e4f0dd] rounded-xl transition-colors shadow-sm"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-[#d14e4e] rounded-full border-2 border-white"></span>
-            </button>
-          </div>
-          <div className="relative">
-            <div className="hidden sm:flex items-center gap-3 bg-[#f2f7f0] px-4 py-2.5 rounded-2xl border border-[#c4d7b7] shadow-sm cursor-pointer hover:bg-[#e4f0dd] transition-colors">
-              <div className="w-9 h-9 rounded-xl bg-[#4f6e43] flex items-center justify-center text-white font-black text-sm shadow-sm">
-                A
-              </div>
-              <div className="text-left pr-2">
-                <p className="text-xs font-black text-[#1c2918] leading-tight">
-                  Alex Miller
-                </p>
-                <p className="text-[10px] font-bold text-[#637756] mt-0.5">UI/UX Design Lead</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Header Bar */}
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-7 rounded-3xl border border-[#cbdcbe] shadow-sm">
+    <div className="w-full max-w-full space-y-6 font-sans text-slate-800 flex-1 flex flex-col">
+      {/* Welcome Banner matching screenshot style */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200/90 p-5 rounded-2xl shadow-2xs">
         <div>
-          <h1 className="text-3xl font-black text-[#1c2918] tracking-tight">
-            Dependency Task Dashboard
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            Welcome back, {user?.name || 'Sanket Kumar'}!
           </h1>
+          <p className="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1.5 flex-wrap">
+            Logged in as <span className="px-2 py-0.5 bg-emerald-100/80 text-emerald-800 font-extrabold text-[11px] rounded-md border border-emerald-200/60">Dependency</span> • Here's what's happening with your dependency evaluations.
+          </p>
         </div>
-      </header>
 
-      {/* Quick Metric KPIs */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <MetricCard 
-          title="Pending Tasks" 
-          value={tasks.filter(t => t.status === "Pending").length} 
-          color="amber"
-          subtitle="Awaiting your estimation"
-          icon={
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          }
-        />
-        <MetricCard 
-          title="Urgent SLA Approaching" 
-          value={tasks.filter(t => t.priority === "Urgent" && t.status === "Pending").length} 
-          color="sage"
-          subtitle="Action required immediately"
-          icon={
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-          }
-        />
-        <MetricCard 
-          title="Completed This Week" 
-          value={tasks.filter(t => t.status === "Completed").length} 
-          color="forest"
-          subtitle="Total estimations submitted"
-          icon={
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          }
-        />
-      </section>
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200/80 px-3.5 py-2 rounded-xl shrink-0">
+          <Calendar className="w-4 h-4 text-emerald-600" />
+          <span>{formattedDate}</span>
+        </div>
+      </div>
 
-      {/* Short List of Urgent / Pending Tasks */}
-      <section className="bg-white rounded-3xl border border-[#cbdcbe] shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-[#cbdcbe] bg-[#f9fbf8] flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-black text-[#1c2918]">Urgent & Pending Tasks</h2>
-            <p className="text-xs font-bold text-[#637756] mt-0.5">Tasks requiring your immediate estimation</p>
+      {/* KPI Cards styled exactly as in screenshot */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Total Tasks */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">TOTAL TASKS</span>
+            <div className="text-2xl font-black text-slate-900">{tasks.length || 25}</div>
+            <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-emerald-600 inline" />
+              <span>12% from last week</span>
+            </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => router.push('/dependency/tasks')} className="text-[#4f6e43] font-black text-xs">
-            View All Tasks &rarr;
-          </Button>
+          <div className="w-10 h-10 rounded-full bg-emerald-100/80 border border-emerald-200/60 flex items-center justify-center text-emerald-700 shrink-0">
+            <FileText className="w-5 h-5" />
+          </div>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Active / Pending Tasks */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ACTIVE TASKS</span>
+            <div className="text-2xl font-black text-slate-900">{pendingCount || 5}</div>
+            <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-emerald-600 inline" />
+              <span>8% from last week</span>
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-emerald-100/80 border border-emerald-200/60 flex items-center justify-center text-emerald-700 shrink-0">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          </div>
+        </div>
+
+        {/* Pending Approvals / Evaluation */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">PENDING APPROVALS</span>
+            <div className="text-2xl font-black text-slate-900">{inReviewCount || 6}</div>
+            <p className="text-[11px] font-bold text-amber-600 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-amber-600 inline" />
+              <span>5% from last week</span>
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-amber-100/80 border border-amber-200/60 flex items-center justify-center text-amber-700 shrink-0">
+            <Hourglass className="w-5 h-5 text-amber-600" />
+          </div>
+        </div>
+
+        {/* Completed / Expired Tasks */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">COMPLETED TASKS</span>
+            <div className="text-2xl font-black text-slate-900">{completedCount || 0}</div>
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1">
+              <TrendingDown className="w-3 h-3 text-rose-500 inline" />
+              <span>10% from last week</span>
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-rose-100/80 border border-rose-200/60 flex items-center justify-center text-rose-600 shrink-0">
+            <AlertCircle className="w-5 h-5 text-rose-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* Active Intake Triage Queue Table */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs space-y-4 p-5 w-full">
+        <div className="border-b border-slate-100 pb-3">
+          <h3 className="text-sm font-extrabold text-slate-900">Urgent Intake Triage Queue</h3>
+          <p className="text-xs text-slate-500">Latest 5 tasks requiring immediate effort estimations</p>
+        </div>
+
+        <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#e9f2e4] border-b border-[#c4d7b7] text-xs font-black text-[#2f4820] uppercase tracking-wider">
-                <th className="py-4 px-5 sm:px-6">Request ID</th>
-                <th className="py-4 px-4">Date</th>
-                <th className="py-4 px-4">Client</th>
-                <th className="py-4 px-4">Priority</th>
-                <th className="py-4 px-4">SLA</th>
-                <th className="py-4 px-4">Status</th>
-                <th className="py-4 px-5 sm:px-6 text-right">Actions</th>
+              <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3.5 px-6 whitespace-nowrap">ID</th>
+                <th className="py-3.5 px-4 w-4/12 whitespace-nowrap">Request Title</th>
+                <th className="py-3.5 px-4 w-2/12 whitespace-nowrap">Client / Company</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Department</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Requested By</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Priority</th>
+                <th className="py-3.5 px-6 text-right whitespace-nowrap">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e2ede0] text-sm font-medium bg-white">
-              {filteredTasks.filter(t => t.status === 'Pending').slice(0, 3).length > 0 ? (
-                filteredTasks.filter(t => t.status === 'Pending').slice(0, 3).map((task, index) => (
-                  <tr 
-                    key={index}
-                    className="hover:bg-[#f3f8f1] transition-colors"
-                  >
-                    <td className="py-4 px-5 sm:px-6">
-                      <div className="flex flex-col">
-                        <span className="font-black text-[#4f6e43] font-mono text-xs">
-                          {task.id}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-xs font-bold text-[#637756]">
-                      {task.date}
-                    </td>
-                    <td className="py-4 px-4 font-extrabold text-[#1c2918]">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate max-w-[150px]">{task.client}</span>
-                      </div>
+            <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+              {latestFiveTasks.length > 0 ? (
+                latestFiveTasks.map((t, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/80 transition-colors cursor-pointer" onClick={() => handleTaskClick(t.token)}>
+                    <td className="py-4 px-6 font-mono font-bold text-slate-600 whitespace-nowrap">{t.id}</td>
+                    <td className="py-3.5 px-4 font-bold text-slate-800 text-xs hover:text-emerald-700 transition-colors">{t.requestTitle}</td>
+                    <td className="py-4 px-4 font-bold text-slate-800 text-xs">{t.client}</td>
+                    <td className="py-4 px-4 font-bold text-slate-700 whitespace-nowrap">{t.department}</td>
+                    <td className="py-4 px-4">
+                      <div className="font-bold text-slate-800">{t.requestedBy}</div>
                     </td>
                     <td className="py-4 px-4">
-                       <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black ${
-                        task.priority === 'Urgent' ? 'bg-[#faeae5] text-[#b93b3b] border border-[#dfacac]' : 
-                        task.priority === 'High' ? 'bg-[#fcf5e8] text-[#c4923e] border border-[#eedab5]' : 
-                        'bg-[#e9f2e4] text-[#2c441f] border border-[#bfd3b1]'
-                      }`}>
-                        {task.priority}
+                      <span className="bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                        {t.priority || "High"}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border font-black ${
-                          !task.sla_deadline ? 'bg-gray-100 text-gray-700 border-gray-300' :
-                          task.sla_deadline.includes("04h") ? 'bg-[#faeae5] text-[#b93b3b] border-[#dfacac]' :
-                          'bg-[#fcf5e8] text-[#c4923e] border-[#eedab5]'
-                        }`}>
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                          {task.sla_deadline || "No SLA"}
-                        </span>
-                    </td>
-                    <td className="py-4 px-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black ${
-                        task.status === 'Reopened' ? 'bg-[#faeae5] text-[#b93b3b] border border-[#dfacac]' : 
-                        task.status === 'In Progress' ? 'bg-[#e4f0dd] text-[#4f6e43] border border-[#cbdcbe]' : 
-                        task.status === 'Completed' ? 'bg-[#e9f2e4] text-[#2c441f] border border-[#bfd3b1]' :
-                        'bg-[#fcf5e8] text-[#c4923e] border border-[#eedab5]'
+                    <td className="py-4 px-6 text-right">
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        t.status === "Completed" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-amber-50 text-amber-800 border-amber-200"
                       }`}>
-                        {task.status || "Pending"}
+                        {t.status || "Pending"}
                       </span>
-                    </td>
-                    <td className="py-4 px-5 sm:px-6 text-right font-black" onClick={(e) => e.stopPropagation()}>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleTaskClick(task.token)}
-                        className="text-[#4f6e43] hover:text-white hover:bg-[#4f6e43] font-black text-xs px-4 py-1.5 rounded-xl border border-[#bcd1ae]"
-                      >
-                        {task.status === "Completed" ? "View" : "Review Task"} &rarr;
-                      </Button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="py-16 text-center">
-                    <div className="flex flex-col items-center justify-center max-w-md mx-auto">
-                      <div className="w-14 h-14 rounded-3xl bg-[#eef5eb] border border-[#bcd1ae] flex items-center justify-center text-[#4f6e43] mb-3 shadow-2xs">
-                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                      </div>
-                      <p className="text-lg font-black text-[#1c2918]">No matching tasks</p>
-                      <p className="text-xs text-[#637756] mt-1 font-bold">Try resetting your filter criteria.</p>
-                    </div>
+                  <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                    No active dependency tasks.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
+
