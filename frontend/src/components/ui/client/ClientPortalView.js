@@ -75,11 +75,23 @@ export default function ClientPortalView({
   const dbRedlines = contract?.redlines || [];
   const allRedlines = [...dbRedlines, ...localRedlines];
 
+  const formatTimestamp = (tsStr) => {
+    if (!tsStr) return "";
+    const str = String(tsStr);
+    const isoStr = (str.endsWith("Z") || str.includes("+")) ? str : str + "Z";
+    const dateObj = new Date(isoStr);
+    return isNaN(dateObj.getTime()) ? str : dateObj.toLocaleString();
+  };
+
   const isExecuted = contract?.status === "EXECUTED";
+  const isClientSigned = contract?.status === "CLIENT_SIGNED";
   const isNegotiation = contract?.status === "CLIENT_NEGOTIATION";
   const isRedispatchedV11 = (contract?.version === "v1.1" || contract?.version === "v1.2") && !isNegotiation;
-  const isReadOnly = contract?.is_readonly || isExecuted;
+  const isReadOnly = contract?.is_readonly || isExecuted || isClientSigned;
   const daysRemaining = 12;
+
+  const clientSig = contract?.client_signature || contract?.signature;
+  const companySig = contract?.company_signature;
 
   // Helper for natural inline track-changes redline rendering
   const renderHighlightedText = (contentStr) => {
@@ -435,42 +447,62 @@ export default function ClientPortalView({
             ))}
 
             {/* E-Signature & Execution Certificate Block */}
-            {(isExecuted || contract?.signature) && (
+            {(isExecuted || isClientSigned || clientSig) && (
               <div className="mt-12 pt-8 border-t-2 border-emerald-500 space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-emerald-800">
                     <ShieldCheck className="w-5 h-5 text-emerald-700" />
                     <h3 className="text-sm font-extrabold uppercase tracking-wider">
-                      IN WITNESS WHEREOF — EXECUTED E-SIGNATURE BLOCK
+                      IN WITNESS WHEREOF — E-SIGNATURE EXECUTION BLOCK
                     </h3>
                   </div>
-                  <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-full border border-emerald-300">
-                    STATUS: OFFICIALLY SIGNED & BINDING ({contract?.version || "v1.0"})
+                  <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border ${
+                    isExecuted 
+                      ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                      : isClientSigned 
+                      ? "bg-blue-100 text-blue-900 border-blue-300"
+                      : "bg-slate-100 text-slate-700 border-slate-300"
+                  }`}>
+                    STATUS: {isExecuted ? "FULLY EXECUTED & DUAL SIGNED" : isClientSigned ? "SIGNED BY CLIENT — PENDING COMPANY COUNTERSIGN" : "AWAITING CLIENT SIGNATURE"} ({contract?.version || "v1.0"})
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-emerald-50/50 border border-emerald-200 rounded-2xl p-6">
-                  {/* Vendor Signatory */}
+                  {/* Vendor / Company Signatory */}
                   <div className="space-y-3 border-b sm:border-b-0 sm:border-r border-emerald-200/60 pb-4 sm:pb-0 sm:pr-4">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      VENDOR / ISSUING ENTITY
+                      COMPANY / ISSUING ENTITY
                     </span>
                     <h4 className="text-sm font-extrabold text-slate-900">
                       {contract?.vendor_name || "MarketBytes Enterprise"}
                     </h4>
                     
                     <div className="h-16 flex items-center justify-start border-b border-emerald-200 py-1">
-                      <div className="font-serif italic text-lg text-emerald-900 font-bold tracking-wide">
-                        David Chen
-                      </div>
+                      {companySig?.signature_data && companySig.signature_data.startsWith("data:image") ? (
+                        <img src={companySig.signature_data} alt="Company Signature" className="h-14 object-contain" />
+                      ) : companySig?.signature_data && companySig.signature_data.startsWith("TYPED:") ? (
+                        <div className={`italic text-2xl text-emerald-900 font-bold tracking-wide ${companySig.signature_data.split(":")[1] || "font-serif"}`}>
+                          {companySig.signature_data.split(":")[2] || companySig.signer_name}
+                        </div>
+                      ) : companySig ? (
+                        <div className="font-serif italic text-2xl text-emerald-950 font-bold tracking-wide">
+                          {companySig.signer_name}
+                        </div>
+                      ) : (
+                        <div className="text-xs italic text-slate-400 font-medium">
+                          Pending Company Countersign (Will be applied by Contract Manager)
+                        </div>
+                      )}
                     </div>
 
                     <div className="text-xs space-y-1 text-slate-600">
-                      <p><strong>Signed By:</strong> David Chen</p>
-                      <p><strong>Title:</strong> VP of Engineering & Operations</p>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        Date: {contract?.last_redispatched_at ? new Date(contract.last_redispatched_at).toLocaleDateString() : "August 06, 2026"}
-                      </p>
+                      <p><strong>Signed By:</strong> {companySig?.signer_name || "Sarah Jenkins (Pending Countersign)"}</p>
+                      <p><strong>Title:</strong> {companySig?.signer_title || "Contract Manager & Authorized Officer"}</p>
+                      {companySig?.signed_at && (
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          Timestamp: {formatTimestamp(companySig.signed_at)}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -484,39 +516,49 @@ export default function ClientPortalView({
                     </h4>
                     
                     <div className="h-16 flex items-center justify-start border-b border-emerald-200 py-1">
-                      {contract?.signature?.signature_data && contract.signature.signature_data.startsWith("data:image") ? (
+                      {clientSig?.signature_data && clientSig.signature_data.startsWith("data:image") ? (
                         <img
-                          src={contract.signature.signature_data}
+                          src={clientSig.signature_data}
                           alt="Client E-Signature"
                           className="h-14 object-contain"
                         />
-                      ) : (
+                      ) : clientSig?.signature_data && clientSig.signature_data.startsWith("TYPED:") ? (
+                        <div className={`italic text-2xl text-emerald-900 font-bold tracking-wide ${clientSig.signature_data.split(":")[1] || "font-serif"}`}>
+                          {clientSig.signature_data.split(":")[2] || clientSig.signer_name}
+                        </div>
+                      ) : clientSig ? (
                         <div className="font-serif italic text-2xl text-emerald-950 font-medium tracking-wide">
-                          {contract?.signature?.signature_data || contract?.signature?.signer_name || "Signed"}
+                          {clientSig.signature_data || clientSig.signer_name || "Signed"}
+                        </div>
+                      ) : (
+                        <div className="text-xs italic text-slate-400 font-medium">
+                          Click "Accept & Sign Proposal" below to execute signature
                         </div>
                       )}
                     </div>
 
                     <div className="text-xs space-y-1 text-slate-600">
-                      <p><strong>Signed By:</strong> {contract?.signature?.signer_name || contract?.client_name}</p>
-                      <p><strong>Title:</strong> {contract?.signature?.signer_title || "Authorized Signatory"}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        Timestamp: {contract?.signature?.signed_at ? new Date(contract.signature.signed_at).toLocaleString() : new Date().toLocaleString()}
-                      </p>
-                      {contract?.signature?.ip_address && (
+                      <p><strong>Signed By:</strong> {clientSig?.signer_name || contract?.client_name}</p>
+                      <p><strong>Title:</strong> {clientSig?.signer_title || "Authorized Signatory"}</p>
+                      {clientSig?.signed_at && (
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          Timestamp: {formatTimestamp(clientSig.signed_at)}
+                        </p>
+                      )}
+                      {clientSig?.ip_address && (
                         <p className="text-[10px] text-slate-400 font-mono">
-                          IP: {contract.signature.ip_address} | Token Verified
+                          IP: {clientSig.ip_address} | Token Verified
                         </p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white border border-emerald-200 rounded-xl p-3 text-[11px] text-slate-500 flex items-center justify-between font-mono">
-                  <span>Audit Hash: SHA256-e9c8f12a78b4...</span>
+                <div className="bg-white border border-emerald-200 rounded-xl p-3 text-[11px] text-slate-500 flex flex-wrap items-center justify-between font-mono gap-2">
+                  <span>Audit Hash: {clientSig && clientSig.sha256_hash ? "SHA256-" + clientSig.sha256_hash.substring(0, 16) + "..." : "SHA256-PENDING-SIGNATURE"}</span>
                   <span className="text-emerald-700 font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Cryptographically Secured & Stored
+                    {isExecuted ? "Dual Signed & Cryptographically Locked" : isClientSigned ? "Client Signed — Pending Company Countersign" : "Ready for Client Signature"}
                   </span>
                 </div>
               </div>
@@ -527,17 +569,7 @@ export default function ClientPortalView({
 
       {/* Floating Bottom Action Bar */}
       <div className="no-print fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 py-3.5 px-6 shadow-xl">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleDownloadPDF}
-              className="px-4 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center gap-2 shadow-xs"
-            >
-              <Download className="w-4 h-4 text-slate-500" />
-              <span>Download PDF</span>
-            </button>
-          </div>
-
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-end gap-4">
           <div className="flex items-center gap-3">
             {!isReadOnly && !isNegotiation && (
               <button
@@ -555,7 +587,12 @@ export default function ClientPortalView({
             {isExecuted ? (
               <div className="px-5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                <span>Contract Signed & Executed ({contract?.version || "v1.0"})</span>
+                <span>Contract Fully Executed & Locked ({contract?.version || "v1.0"})</span>
+              </div>
+            ) : isClientSigned ? (
+              <div className="px-5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-blue-700" />
+                <span>Signed by Client — Awaiting Company Countersignature</span>
               </div>
             ) : isNegotiation ? (
               <div className="px-5 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2 shadow-xs">

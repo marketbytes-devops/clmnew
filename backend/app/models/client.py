@@ -3,9 +3,8 @@ from sqlalchemy import Column, String, Float, Boolean, Text, DateTime, Integer, 
 from sqlalchemy.orm import relationship
 from app.database import Base
 
-class ClientContract(Base):
-    __tablename__ = "client_contracts"
-    __table_args__ = {'extend_existing': True}
+class ClientPortalContract(Base):
+    __tablename__ = "client_portal_contracts"
 
     id = Column(String(50), primary_key=True, index=True)
     title = Column(String(255), nullable=False)
@@ -30,25 +29,28 @@ class ClientContract(Base):
     signatures = relationship("ClientSignature", back_populates="contract", cascade="all, delete-orphan")
     notifications = relationship("ClientNotification", back_populates="contract", cascade="all, delete-orphan")
 
+# Alias for backward compatibility across services
+ClientContract = ClientPortalContract
+
 class PortalInviteToken(Base):
     __tablename__ = "portal_invite_tokens"
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_portal_contracts.id"), nullable=False)
     token = Column(String(128), unique=True, index=True, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     is_revoked = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("ClientContract", back_populates="tokens")
+    contract = relationship("ClientPortalContract", back_populates="tokens")
 
 class ClientRedline(Base):
     __tablename__ = "client_redlines"
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_portal_contracts.id"), nullable=False)
     selected_text = Column(Text, nullable=False)
     category = Column(String(100), nullable=False)
     proposed_wording = Column(Text, nullable=False)
@@ -57,32 +59,34 @@ class ClientRedline(Base):
     cm_counter_wording = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("ClientContract", back_populates="redlines")
+    contract = relationship("ClientPortalContract", back_populates="redlines")
 
 class ClientSignature(Base):
     __tablename__ = "client_signatures"
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_portal_contracts.id"), nullable=False)
+    signatory_type = Column(String(20), default="CLIENT") # CLIENT, COMPANY
     signer_name = Column(String(255), nullable=False)
     signer_title = Column(String(255), nullable=False)
     signature_data = Column(Text, nullable=False)
+    sha256_hash = Column(String(128), nullable=True)
     ip_address = Column(String(100), nullable=True)
     signed_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("ClientContract", back_populates="signatures")
+    contract = relationship("ClientPortalContract", back_populates="signatures")
 
 class ClientNotification(Base):
     __tablename__ = "client_notifications"
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_id = Column(String(50), ForeignKey("client_contracts.id"), nullable=False)
+    contract_id = Column(String(50), ForeignKey("client_portal_contracts.id"), nullable=False)
     recipient_role = Column(String(50), nullable=False) # CM, CLIENT
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    contract = relationship("ClientContract", back_populates="notifications")
+    contract = relationship("ClientPortalContract", back_populates="notifications")

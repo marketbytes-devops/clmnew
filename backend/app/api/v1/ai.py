@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List, Any
+from typing import List, Any, Optional
 from app.database import get_db
 from app.schemas.ai import (
     AIChatRequest, AIChatResponse, AIUsageLogBase,

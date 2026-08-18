@@ -43,3 +43,36 @@ def decode_token(token: str):
         return payload
     except JWTError:
         return None
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def send_otp_email(to_email: str, otp_code: str):
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_user = os.getenv("SMTP_USERNAME")
+    smtp_pass = os.getenv("SMTP_PASSWORD")
+    
+    if not smtp_user or not smtp_pass:
+        print(f"WARNING: SMTP credentials not set. Simulated OTP for {to_email}: {otp_code}")
+        return
+
+    msg = MIMEMultipart()
+    msg['From'] = smtp_user
+    msg['To'] = to_email
+    msg['Subject'] = "Your Registration OTP"
+
+    body = f"Your one-time password (OTP) for registration is: {otp_code}\nThis code will expire in 10 minutes."
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        text = msg.as_string()
+        server.sendmail(smtp_user, to_email, text)
+        server.quit()
+    except Exception as e:
+        print(f"Failed to send email to {to_email}: {str(e)}")
+        print(f"Simulated OTP: {otp_code}")

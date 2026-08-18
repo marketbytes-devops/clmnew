@@ -121,18 +121,20 @@ export default function ApproverDependencyPage({ params: paramsPromise }) {
   const reqInputs = dep.required_inputs || { hours_estimate: true, costing: true, feasibility_note: true };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col h-screen overflow-hidden text-slate-800 font-sans">
+    <div className="w-full max-w-full font-sans text-slate-800 space-y-6 flex-1 flex flex-col">
       
-      {/* Header */}
-      <div className="h-16 bg-slate-900 text-white flex items-center justify-between px-6 shrink-0 shadow-md z-20">
+      {/* Top Banner / Header Card */}
+      <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-2xs flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/admin/contracts" className="text-gray-400 hover:text-white transition-colors">
+          <Link href="/admin/requests" className="p-2 text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <div className="w-px h-6 bg-slate-700" />
+          <div className="w-px h-8 bg-slate-200" />
           <div>
-            <h1 className="text-sm font-bold tracking-wide">Dependency Response <span className="text-emerald-400">#{dep.id}</span></h1>
-            <p className="text-[10px] text-slate-400 font-medium">Assignee: {dep.assignee_name}</p>
+            <h1 className="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              Dependency Response <span className="text-emerald-600">#{dep.id}</span>
+            </h1>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Assignee: <span className="font-bold text-slate-700">{dep.assignee_name || "Department Lead"}</span> • Status: <span className="font-bold text-emerald-700">{dep.status || "Pending"}</span></p>
           </div>
         </div>
         
@@ -140,62 +142,63 @@ export default function ApproverDependencyPage({ params: paramsPromise }) {
           <button 
             onClick={() => handleSubmit("save")}
             disabled={isSubmitting || dep.status === "Submitted"}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-2 shadow-2xs"
           >
             <Save className="w-3.5 h-3.5" /> Save Progress
           </button>
           <button 
             onClick={() => handleSubmit("submit")}
             disabled={isSubmitting || dep.status === "Submitted"}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs disabled:opacity-50 flex items-center gap-2"
           >
             <Send className="w-3.5 h-3.5" /> Submit Response
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[600px]">
+
         
         {/* Left Panel: Context Brief */}
-        <div className="w-1/3 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
-          <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-            <h2 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
+        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl overflow-y-auto flex flex-col shadow-2xs">
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-sm font-extrabold text-slate-900 mb-1 flex items-center gap-2">
               <FileText className="w-4 h-4 text-emerald-600" /> Contract Brief
             </h2>
-            <p className="text-xs text-gray-500 leading-relaxed">Read-only context from the main request to inform your estimation.</p>
+            <p className="text-xs text-slate-500 leading-relaxed">Read-only context from the main request to inform your estimation.</p>
           </div>
           
           <div className="p-6 space-y-6">
             <div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Client / Entity</span>
-              <p className="text-sm font-semibold text-gray-900">{brief.client_name || "Unknown"}</p>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Client / Entity</span>
+              <p className="text-sm font-semibold text-slate-900">{brief.client_name || "Unknown"}</p>
             </div>
             
             <div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Contract Request Title</span>
-              <p className="text-sm font-semibold text-gray-900">{brief.title}</p>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Contract Request Title</span>
+              <p className="text-sm font-semibold text-slate-900">{brief.title}</p>
             </div>
             
             <div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Scope Summary</span>
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-sm text-gray-700 leading-relaxed">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Scope Summary</span>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-700 leading-relaxed">
                 {brief.description || "No description provided."}
               </div>
             </div>
 
             {brief.deliverables && brief.deliverables.length > 0 && (
               <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Deliverables</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Deliverables</span>
                 <ul className="list-disc pl-4 space-y-1">
                   {brief.deliverables.map((d, i) => (
-                    <li key={i} className="text-sm text-gray-700">{d}</li>
+                    <li key={i} className="text-sm text-slate-700">{d}</li>
                   ))}
                 </ul>
               </div>
             )}
             
-            <div className="pt-4 border-t border-gray-100">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">CM Task Objective</span>
+            <div className="pt-4 border-t border-slate-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-3">CM Task Objective</span>
               <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
                 <p className="text-sm text-blue-900 font-medium">{dep.task_objective}</p>
                 <div className="mt-3 flex items-center gap-2 text-xs font-bold text-blue-700">
@@ -207,7 +210,8 @@ export default function ApproverDependencyPage({ params: paramsPromise }) {
         </div>
 
         {/* Right Panel: Response Form */}
-        <div className="flex-1 bg-[#F8FAFC] overflow-y-auto p-8 relative">
+        <div className="lg:col-span-8 space-y-6">
+
           {dep.status === "Submitted" && (
             <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -379,7 +383,6 @@ export default function ApproverDependencyPage({ params: paramsPromise }) {
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none min-h-[120px]"
               />
             </div>
-
           </div>
         </div>
       </div>

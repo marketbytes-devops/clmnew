@@ -108,7 +108,8 @@ def create_request(
                 task_objective=dep.get("task_objective"),
                 sla_deadline=dep.get("sla_deadline"),
                 required_inputs=dep.get("required_inputs", []),
-                status="Pending"
+                status="Pending",
+                access_token=f"task-{uuid.uuid4().hex[:8]}"
             )
             db.add(dep_obj)
         db.commit()

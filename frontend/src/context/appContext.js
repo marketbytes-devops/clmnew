@@ -10,7 +10,7 @@ export const MOCK_USERS = [
     id: 101,
     name: 'John Sales',
     email: 'john.sales@marketbytes.com',
-    department: 'Sales',
+    department: 'Sales Department',
     role: 'Requester',
     title: 'Account Executive'
   },
@@ -18,23 +18,23 @@ export const MOCK_USERS = [
     id: 102,
     name: 'Alex Miller',
     email: 'alex.miller@marketbytes.com',
-    department: 'Legal Operations',
-    role: 'Contract Manager',
-    title: 'Contract Specialist'
+    department: 'UI/UX & Engineering',
+    role: 'Department Lead',
+    title: 'UI/UX Design Lead'
   },
   {
     id: 103,
     name: 'Sarah Jenkins',
     email: 'sarah.jenkins@marketbytes.com',
-    department: 'Finance',
-    role: 'Reviewer',
-    title: 'Finance Director'
+    department: 'Contract Management',
+    role: 'Contract Manager',
+    title: 'Contract Specialist'
   },
   {
     id: 104,
     name: 'Elena Rostova',
     email: 'elena.rostova@marketbytes.com',
-    department: 'Legal',
+    department: 'Legal Counsel',
     role: 'Reviewer',
     title: 'General Counsel'
   },
@@ -73,6 +73,10 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(true);
+
+  // Sidebar Open/Collapse State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
   // ==========================================
   // Stage 1: Requester Portal States
@@ -214,7 +218,60 @@ export const AppProvider = ({ children }) => {
     initializeApp();
   }, [loadRequestsData, loadAssigneeOptions]);
 
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('clm_custom_users');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const saveUsersLocally = (updatedUsers) => {
+    setUsers(updatedUsers);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('clm_custom_users', JSON.stringify(updatedUsers));
+    }
+  };
+
+  const addUser = (newUser) => {
+    setUsers(prev => {
+      const updated = [newUser, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('clm_custom_users', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const [departments, setDepartments] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('clm_custom_departments');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const saveDepartmentsLocally = (updatedDepts) => {
+    setDepartments(updatedDepts);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('clm_custom_departments', JSON.stringify(updatedDepts));
+    }
+  };
+
+  const addDepartment = (newDept) => {
+    setDepartments(prev => {
+      const updated = [newDept, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('clm_custom_departments', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
   const [roles, setRoles] = useState([]);
 
   // Example of centralizing state logic for the Admin
@@ -333,6 +390,8 @@ export const AppProvider = ({ children }) => {
     error,
     setError,
     isAuthenticated,
+    isSidebarOpen,
+    toggleSidebar,
     contractRequests,
     setContractRequests,
     requestMetrics,
@@ -356,6 +415,13 @@ export const AppProvider = ({ children }) => {
     submitNewRequest,
     triggerAIParsing,
     users,
+    setUsers,
+    saveUsersLocally,
+    addUser,
+    departments,
+    setDepartments,
+    saveDepartmentsLocally,
+    addDepartment,
     roles,
     contracts,
     requests,

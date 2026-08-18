@@ -45,7 +45,7 @@ class User(Base):
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
     department = relationship("Department", back_populates="users", foreign_keys=[department_id])
     
-    # contracts = relationship("Contract", back_populates="owner")
+    # contracts = relationship("app.models.contract.Contract", back_populates="owner")
     submitted_requests = relationship("ContractRequest", foreign_keys="ContractRequest.requester_id", back_populates="requester")
     assigned_requests = relationship("ContractRequest", foreign_keys="ContractRequest.assigned_to_id", back_populates="assigned_to")
     login_history = relationship("LoginHistory", back_populates="user", cascade="all, delete-orphan")

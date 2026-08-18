@@ -24,7 +24,15 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from app.database import Base
-from app.auth import models  # ensure models are imported
+from app.core import models as core_models
+from app.forms import models as forms_models
+from app.requests import models as requests_models
+from app.clients import models as clients_models
+from app.contracts import models as contracts_models
+from app.workflows import models as workflows_models
+from app.portal import models as portal_models
+from app.obligations import models as obligations_models
+from app.audit import models as audit_models
 target_metadata = Base.metadata
 
 load_dotenv()
