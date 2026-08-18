@@ -50,6 +50,7 @@ class ContractRequestBase(BaseModel):
     primary_contact_name: Optional[str] = None
     primary_contact_email: Optional[str] = None
     jurisdiction: Optional[str] = None
+    assigned_to_id: Optional[int] = None
 
     category: Optional[str] = None
     contract_type: Optional[str] = None

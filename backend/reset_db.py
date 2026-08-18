@@ -16,7 +16,7 @@ from app.models import (
     ContractRequest, RequestAttachment, RequestComment, RequestTimeline, RequestDependency,
     AIConfiguration, AIPrompt, AIUsageLog
 )
-from app.client.models import (
+from app.models.client import (
     ClientContract, PortalInviteToken, ClientRedline, ClientSignature, ClientNotification
 )
 

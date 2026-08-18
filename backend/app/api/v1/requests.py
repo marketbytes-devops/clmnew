@@ -83,15 +83,17 @@ def create_request(
         {"step": 4, "role": "Executive", "name": "David Chen", "status": "Queued", "timestamp": None}
     ]
 
-    db_request = ContractRequest(
-        **req_dict,
-        tracking_id=tracking_id,
-        status=initial_status,
-        requester_id=current_user_id,
-        version_label="v1.0",
-        approval_sequence=default_sequence,
-        inline_comments=[]
-    )
+    # Update req_dict to avoid duplicate argument errors in constructor
+    req_dict.update({
+        "tracking_id": tracking_id,
+        "status": initial_status,
+        "requester_id": current_user_id,
+        "version_label": "v1.0",
+        "approval_sequence": default_sequence,
+        "inline_comments": []
+    })
+
+    db_request = ContractRequest(**req_dict)
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
