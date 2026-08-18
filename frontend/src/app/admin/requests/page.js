@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { 
   Inbox, Search, Filter, RefreshCw, FileText, ArrowRight, CheckCircle2, Clock, 
   AlertCircle, ChevronRight, User, Calendar, Tag, ShieldCheck, ArrowUpRight, Plus
@@ -9,6 +10,8 @@ import { APIService } from '../../../service/apiService';
 import { useAppContext } from '../../../context/appContext';
 
 export default function ContractRequestsPage() {
+  const pathname = usePathname();
+  const basePath = pathname?.startsWith('/cm') ? '/cm' : '/admin';
   const { contractRequests: contextRequests } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState([]);
@@ -272,7 +275,7 @@ export default function ContractRequestsPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Link 
-                        href="/admin/drafting"
+                        href={`${basePath}/drafting`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#16a34a] bg-[#eaf5ea] border border-emerald-200 rounded-xl hover:bg-[#dcfce7] transition-colors"
                       >
                         Process Request
