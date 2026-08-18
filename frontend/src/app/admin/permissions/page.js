@@ -49,6 +49,15 @@ const PERMISSION_SECTIONS = [
     ]
   },
   {
+    category: 'CONTRACT MANAGER & WORKBENCH OPERATIONS',
+    modules: [
+      { id: 'cm_workbench', name: 'Internal Negotiation Workbench', view: true, add: true, edit: true, delete: true },
+      { id: 'cm_intake_triage', name: 'Contract Intake Triage & Assignment', view: true, add: true, edit: true, delete: true },
+      { id: 'cm_redline_decision', name: 'Client Redline Decisioning & Versioning', view: true, add: true, edit: true, delete: true },
+      { id: 'cm_countersign', name: 'Countersign & Execution Management', view: true, add: true, edit: true, delete: true }
+    ]
+  },
+  {
     category: 'LEGAL OPERATIONS FEATURES',
     modules: [
       { id: 'clause_library', name: 'Clause Template Library', view: true, add: true, edit: true, delete: false },
@@ -97,7 +106,17 @@ export default function PermissionsPage() {
       initialState[role.id] = JSON.parse(JSON.stringify(PERMISSION_SECTIONS));
       
       // Apply preset rules based on role type
-      if (role.id === 'legal') {
+      if (role.id === 'contract_manager') {
+        initialState[role.id].forEach(sec => {
+          sec.modules.forEach(m => {
+            if (sec.category.includes('ADMIN')) {
+              m.view = true; m.add = false; m.edit = false; m.delete = false;
+            } else {
+              m.view = true; m.add = true; m.edit = true; m.delete = true;
+            }
+          });
+        });
+      } else if (role.id === 'legal') {
         initialState[role.id].forEach(sec => {
           sec.modules.forEach(m => {
             if (sec.category.includes('ADMIN')) {

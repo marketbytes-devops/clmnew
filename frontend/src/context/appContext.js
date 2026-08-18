@@ -307,14 +307,47 @@ export const AppProvider = ({ children }) => {
     setRoles([]);
   };
 
-  const [contracts, setContracts] = useState([]);
+  const [contracts, setContracts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('clm_custom_contracts');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [];
+  });
 
-  // Fetch contracts from the backend
+  const saveContractsLocally = (updated) => {
+    setContracts(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('clm_custom_contracts', JSON.stringify(updated));
+    }
+  };
+
+  // Fetch contracts from the backend & merge with local contracts
   const fetchContracts = async () => {
     try {
       const { APIService } = await import('../service/apiService');
-      const data = await APIService.getContracts();
-      setContracts(data);
+      const backendData = await APIService.getContracts().catch(() => []);
+      
+      let localSaved = [];
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('clm_custom_contracts');
+        if (saved) {
+          try { localSaved = JSON.parse(saved); } catch (e) {}
+        }
+      }
+
+      const combined = [...(Array.isArray(backendData) ? backendData : []), ...localSaved];
+      const map = new Map();
+      combined.forEach(c => {
+        if (c && (c.id || c.title)) {
+          const key = c.id || c.title;
+          if (!map.has(key)) map.set(key, c);
+        }
+      });
+      const result = Array.from(map.values());
+      saveContractsLocally(result);
     } catch (err) {
       console.error("Failed to fetch contracts", err);
     }
@@ -322,27 +355,36 @@ export const AppProvider = ({ children }) => {
 
   // Add a new contract
   const addContract = async (contractData) => {
+    let createdItem = null;
     try {
       const { APIService } = await import('../service/apiService');
-      const newContract = await APIService.createContract(contractData);
-      if (newContract) {
-        setContracts(prev => [newContract, ...prev]);
-      }
-      return newContract;
+      createdItem = await APIService.createContract(contractData);
     } catch (err) {
       console.warn("Failed to create contract on backend, creating local draft", err);
-      const mockContract = {
+    }
+
+    if (!createdItem || !createdItem.id) {
+      createdItem = {
         id: Date.now(),
         title: contractData.title || 'Untitled Contract Agreement',
         status: contractData.status || 'Drafting In Progress',
         value: contractData.value || 0,
         ai_summary: contractData.ai_summary || '',
         metadata_data: contractData.metadata_data || {},
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
-      setContracts(prev => [mockContract, ...prev]);
-      return mockContract;
     }
+
+    setContracts(prev => {
+      const updated = [createdItem, ...prev.filter(c => c.id !== createdItem.id && c.title !== createdItem.title)];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('clm_custom_contracts', JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    return createdItem;
   };
 
   const [requests, setRequests] = useState([]);

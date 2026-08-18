@@ -42,6 +42,7 @@ export default function Header() {
   }, []);
   
   const getPageTitle = () => {
+    if (pathname.includes('/admin/cm-dashboard')) return 'Contract Manager Command Center';
     if (pathname.includes('/dependency/tasks')) return 'My Dependency Tasks';
     if (pathname.includes('/dependency/history')) return 'Completed Tasks History';
     if (pathname.includes('/dependency/')) return 'Task Portal Brief';
@@ -49,6 +50,9 @@ export default function Header() {
     if (pathname.includes('/admin/requests')) return 'Requests / Intake';
     if (pathname.includes('/admin/contracts')) return 'Contracts';
     if (pathname.includes('/admin/drafting')) return 'Drafting';
+    if (pathname.includes('/admin/review')) return 'Approvals & Review';
+    if (pathname.includes('/admin/negotiation')) return 'Negotiation';
+    if (pathname.includes('/admin/repository')) return 'Repository';
     if (pathname.includes('/requestor/requests')) return 'My Requests';
     return 'Dashboard';
   };

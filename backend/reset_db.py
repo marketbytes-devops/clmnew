@@ -41,8 +41,19 @@ def reset_and_seed_db():
     db = SessionLocal()
     try:
         print("Seeding Roles...")
-        admin_role = Role(name="Admin", description="Administrator with full access")
-        manager_role = Role(name="Contract_Manager", description="Contract Manager")
+        cm_default_perms = [
+          {
+            "category": "CONTRACT MANAGER & WORKBENCH OPERATIONS",
+            "modules": [
+              { "id": "cm_workbench", "name": "Internal Negotiation Workbench", "view": True, "add": True, "edit": True, "delete": True },
+              { "id": "cm_intake_triage", "name": "Contract Intake Triage & Assignment", "view": True, "add": True, "edit": True, "delete": True },
+              { "id": "cm_redline_decision", "name": "Client Redline Decisioning & Versioning", "view": True, "add": True, "edit": True, "delete": True },
+              { "id": "cm_countersign", "name": "Countersign & Execution Management", "view": True, "add": True, "edit": True, "delete": True }
+            ]
+          }
+        ]
+        admin_role = Role(name="Admin", description="Administrator with full access", permissions={"all": True})
+        manager_role = Role(name="Contract_Manager", description="Contract Manager", permissions=cm_default_perms)
         requester_role = Role(name="Requester", description="Contract Requester")
         reviewer_role = Role(name="Reviewer", description="Department Reviewer")
         db.add_all([admin_role, manager_role, requester_role, reviewer_role])
