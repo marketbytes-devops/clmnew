@@ -15,7 +15,8 @@ export default function RequestDashboard() {
     requestMetrics, 
     notifications,
     contractManagers,
-    loading 
+    loading,
+    logout
   } = useAppContext();
   
   const router = useRouter();
@@ -162,15 +163,24 @@ export default function RequestDashboard() {
                   <p className="text-[10px] font-bold text-[#637756] mt-0.5">{user?.email || 'john.sales@acmecorp.com'}</p>
                 </div>
                 <div className="p-2">
-                  <button className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-[#1c2918] hover:bg-[#f3f8f1] transition-colors">
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      router.push('/requestor/profile');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-[#1c2918] hover:bg-[#f3f8f1] transition-colors"
+                  >
                     My Profile
-                  </button>
-                  <button className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-[#1c2918] hover:bg-[#f3f8f1] transition-colors">
-                    Settings
                   </button>
                 </div>
                 <div className="p-2 border-t border-[#cbdcbe]">
-                  <button className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-[#d14e4e] hover:bg-[#faeae5] transition-colors">
+                  <button 
+                    onClick={() => {
+                      logout();
+                      router.push('/login');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-[#d14e4e] hover:bg-[#faeae5] transition-colors"
+                  >
                     Sign Out
                   </button>
                 </div>

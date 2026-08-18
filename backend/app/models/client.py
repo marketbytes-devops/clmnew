@@ -29,6 +29,9 @@ class ClientPortalContract(Base):
     signatures = relationship("ClientSignature", back_populates="contract", cascade="all, delete-orphan")
     notifications = relationship("ClientNotification", back_populates="contract", cascade="all, delete-orphan")
 
+# Alias for backward compatibility across services
+ClientContract = ClientPortalContract
+
 class PortalInviteToken(Base):
     __tablename__ = "portal_invite_tokens"
     __table_args__ = {'extend_existing': True}
@@ -64,9 +67,11 @@ class ClientSignature(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     contract_id = Column(String(50), ForeignKey("client_portal_contracts.id"), nullable=False)
+    signatory_type = Column(String(20), default="CLIENT") # CLIENT, COMPANY
     signer_name = Column(String(255), nullable=False)
     signer_title = Column(String(255), nullable=False)
     signature_data = Column(Text, nullable=False)
+    sha256_hash = Column(String(128), nullable=True)
     ip_address = Column(String(100), nullable=True)
     signed_at = Column(DateTime, default=datetime.utcnow)
 

@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAppContext } from '../../context/appContext';
+import UserProfileModal from '../../components/common/UserProfileModal';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -26,6 +28,8 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, isSidebarOpen } = useAppContext();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Contract Manager Sub-pages routes check
   const contractManagerRoutes = [
@@ -42,9 +46,15 @@ export default function Sidebar() {
   );
 
   const isReviewerActive = pathname === '/admin/review' || pathname.startsWith('/admin/review/');
+  
+  const dependencyRoutes = ['/dependency', '/dependency/tasks', '/dependency/history'];
+  const isDependencyActive = dependencyRoutes.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  );
 
   const [contractManagerOpen, setContractManagerOpen] = useState(true);
   const [reviewerOpen, setReviewerOpen] = useState(true);
+  const [dependencyOpen, setDependencyOpen] = useState(true);
 
   useEffect(() => {
     if (isContractManagerActive) {
@@ -53,7 +63,10 @@ export default function Sidebar() {
     if (isReviewerActive) {
       setReviewerOpen(true);
     }
-  }, [pathname, isContractManagerActive, isReviewerActive]);
+    if (isDependencyActive) {
+      setDependencyOpen(true);
+    }
+  }, [pathname, isContractManagerActive, isReviewerActive, isDependencyActive]);
 
   const contractManagerSubItems = [
     { name: 'Contracts', href: '/admin/contracts', icon: FileText },
@@ -68,20 +81,103 @@ export default function Sidebar() {
     { name: 'Approvals & Review', href: '/admin/review', icon: CheckSquare },
   ];
 
-  const adminSystemItems = [
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Departments', href: '/admin/departments', icon: Building2 },
-    { name: 'Permissions', href: '/admin/permissions', icon: ShieldCheck },
-    { name: 'AI Assistant', href: '/admin/ai', icon: Cpu },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
+  const dependencySubItems = [
+    { name: 'Dashboard', href: '/dependency', icon: LayoutDashboard },
+    { name: 'My Dependency Tasks', href: '/dependency/tasks', icon: Inbox },
+    { name: 'History / Completed', href: '/dependency/history', icon: CheckSquare },
   ];
 
+  const adminSystemItems = [
+    { name: 'Users & Roles', href: '/admin/users', icon: Users },
+    { name: 'Security & Access', href: '/admin/permissions', icon: ShieldCheck },
+    { name: 'Audit Logs', href: '/admin/departments', icon: Building2 },
+    { name: 'Reports & Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { name: 'System Settings', href: '/admin/settings', icon: Settings },
+  ];
+
+  // Specific Sidebar View when in /dependency route slug
+  if (pathname.startsWith('/dependency')) {
+    return (
+      <aside className={`w-64 bg-white text-slate-700 flex flex-col h-screen fixed top-0 left-0 border-r border-slate-200/80 shadow-2xs z-40 font-sans transition-transform duration-300 ${
+        isSidebarOpen !== false ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        {/* Brand Header */}
+        <div className="h-20 flex items-center px-6 border-b border-slate-100 gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100/80 flex items-center justify-center text-emerald-600 shadow-2xs shrink-0">
+            <FileCheck className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <span className="text-lg font-extrabold text-slate-900 tracking-tight leading-none block">
+              CLM
+            </span>
+            <span className="text-[10px] font-bold text-emerald-700 leading-tight block mt-0.5 tracking-wider uppercase">
+              DEPENDENCY PORTAL
+            </span>
+          </div>
+        </div>
+
+        {/* Navigation List */}
+        <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1">
+          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+            Dependency Menu
+          </p>
+          {dependencySubItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = (item.href === '/dependency') 
+              ? pathname === item.href 
+              : pathname === item.href || pathname.startsWith(item.href + '/');
+            
+            return (
+              <Link 
+                key={item.href} 
+                href={item.href}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                  isActive 
+                    ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs' 
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-[#16a34a]' : 'text-slate-400'}`} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User Area at Bottom */}
+        <div className="p-4 border-t border-slate-100 bg-white">
+          <div 
+            onClick={() => setIsProfileModalOpen(true)}
+            className="flex items-center justify-between gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-2xs cursor-pointer hover:bg-slate-100/80 transition-colors"
+          >
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-9 h-9 rounded-full bg-[#dcfce7] text-[#15803d] font-bold text-xs flex items-center justify-center border border-emerald-200 shrink-0">
+                {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'JS'}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-xs font-bold text-slate-900 truncate">
+                  {user?.name || 'John Sales'}
+                </p>
+                <p className="text-[11px] font-medium text-slate-400 truncate">
+                  {user?.title || user?.department || 'Dependency Lead'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  // Default Admin Sidebar for all other portal routes
   return (
-    <aside className="w-64 bg-white text-slate-700 flex flex-col h-screen fixed top-0 left-0 border-r border-slate-200/80 shadow-2xs z-20 font-sans">
+    <aside className={`w-64 bg-white text-slate-700 flex flex-col h-screen fixed top-0 left-0 border-r border-slate-200/80 shadow-2xs z-40 font-sans transition-transform duration-300 ${
+      isSidebarOpen !== false ? 'translate-x-0' : '-translate-x-full'
+    }`}>
       
       {/* Brand Header */}
       <div className="h-20 flex items-center px-6 border-b border-slate-100 gap-3">
-        <div className="w-9 h-9 rounded-xl bg-emerald-100/80 flex items-center justify-center text-emerald-600 shadow-2xs">
+        <div className="w-9 h-9 rounded-xl bg-emerald-100/80 flex items-center justify-center text-emerald-600 shadow-2xs shrink-0">
           <FileCheck className="w-5 h-5 text-emerald-600" />
         </div>
         <div>
@@ -89,22 +185,20 @@ export default function Sidebar() {
             CLM
           </span>
           <span className="text-[10px] font-medium text-slate-400 leading-tight block mt-0.5">
-            Contract Lifecycle Management
+            CONTRACT LIFECYCLE MANAGEMENT
           </span>
         </div>
       </div>
       
-      {/* Navigation List in exact user requested order */}
+      {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
         
-        {/* Top Navigation Items: Admin Dashboard, Analytics */}
+        {/* Main Dashboard */}
         <div>
           <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
             Main Portals
           </p>
           <ul className="space-y-1">
-            
-            {/* 1. Admin Dashboard */}
             <li>
               <Link 
                 href="/admin"
@@ -115,29 +209,13 @@ export default function Sidebar() {
                 }`}
               >
                 <LayoutDashboard className={`w-4 h-4 ${pathname === '/admin' ? 'text-[#16a34a]' : 'text-slate-400'}`} />
-                <span>Admin Dashboard</span>
+                <span>Dashboard</span>
               </Link>
             </li>
-
-            {/* 2. Analytics */}
-            <li>
-              <Link 
-                href="/admin/analytics"
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
-                  pathname === '/admin/analytics' 
-                    ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <BarChart3 className={`w-4 h-4 ${pathname === '/admin/analytics' ? 'text-[#16a34a]' : 'text-slate-400'}`} />
-                <span>Analytics</span>
-              </Link>
-            </li>
-
           </ul>
         </div>
 
-        {/* Role-Based Portals: Requester, Contract Manager, Reviewer, Client */}
+        {/* Role-Based Portals */}
         <div>
           <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
             Role Access
@@ -145,7 +223,7 @@ export default function Sidebar() {
           
           <div className="space-y-1">
 
-            {/* 3. Requester */}
+            {/* Requester */}
             <Link 
               href="/requestor"
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
@@ -154,13 +232,13 @@ export default function Sidebar() {
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
                 <Inbox className="w-3.5 h-3.5" />
               </div>
-              <span>Requester</span>
+              <span>Requester Portal</span>
             </Link>
             
-            {/* 4. Contract Manager (Expandable with side sub-pages) */}
+            {/* Contract Manager */}
             <div className="space-y-1">
               <button
                 onClick={() => setContractManagerOpen(!contractManagerOpen)}
@@ -171,7 +249,7 @@ export default function Sidebar() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                     <Briefcase className="w-3.5 h-3.5" />
                   </div>
                   <span>Contract Manager</span>
@@ -209,7 +287,58 @@ export default function Sidebar() {
               )}
             </div>
 
-            {/* 5. Reviewer (Expandable with side sub-pages) */}
+            {/* Dependencies */}
+            <div className="space-y-1">
+              <button
+                onClick={() => setDependencyOpen(!dependencyOpen)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                  isDependencyActive 
+                    ? 'bg-emerald-50/80 text-emerald-900 border border-emerald-200/60' 
+                    : 'text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                    <Cpu className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Dependencies</span>
+                </div>
+                {dependencyOpen ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                )}
+              </button>
+
+              {/* Expandable Dependency Sub-pages */}
+              {dependencyOpen && (
+                <ul className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-teal-100 ml-5">
+                  {dependencySubItems.map((sub) => {
+                    const Icon = sub.icon;
+                    const isActive = (sub.href === '/dependency') 
+                      ? pathname === sub.href 
+                      : pathname === sub.href || pathname.startsWith(sub.href + '/');
+                    return (
+                      <li key={sub.name}>
+                        <Link
+                          href={sub.href}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                            isActive
+                              ? 'bg-[#eaf5ea] text-[#1e5622] font-bold shadow-2xs'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                        >
+                          <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#16a34a]' : 'text-slate-400'}`} />
+                          <span>{sub.name}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* Reviewer */}
             <div className="space-y-1">
               <button
                 onClick={() => setReviewerOpen(!reviewerOpen)}
@@ -220,7 +349,7 @@ export default function Sidebar() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
                     <UserCheck className="w-3.5 h-3.5" />
                   </div>
                   <span>Reviewer</span>
@@ -258,7 +387,7 @@ export default function Sidebar() {
               )}
             </div>
 
-            {/* 6. Client */}
+            {/* Client */}
             <Link 
               href="/client"
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium ${
@@ -267,7 +396,7 @@ export default function Sidebar() {
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shrink-0">
                 <User className="w-3.5 h-3.5" />
               </div>
               <span>Client</span>
@@ -306,6 +435,36 @@ export default function Sidebar() {
 
       </nav>
 
+      {/* User Area at Bottom */}
+      <div className="p-4 border-t border-slate-100 bg-white">
+        <div 
+          onClick={() => setIsProfileModalOpen(true)}
+          className="flex items-center justify-between gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-2xs cursor-pointer hover:bg-slate-100/80 transition-colors"
+        >
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-9 h-9 rounded-full bg-[#dcfce7] text-[#15803d] font-bold text-xs flex items-center justify-center border border-emerald-200 shrink-0">
+              {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'SK'}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-xs font-bold text-slate-900 truncate">
+                {user?.name || 'Sanket Kumar'}
+              </p>
+              <p className="text-[11px] font-medium text-slate-400 truncate">
+                {user?.role || user?.title || 'Admin'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* User Profile & Account Settings Modal */}
+      <UserProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
+
     </aside>
   );
 }
+
+

@@ -119,9 +119,12 @@ export default function RequestWizard() {
         if (existing) return existing;
 
         const availableLeads = departmentLeads[dep] || ['Team Lead / Manager'];
+        const firstLead = availableLeads[0];
+        const leadVal = typeof firstLead === 'object' && firstLead !== null ? (firstLead.name || 'Unassigned Lead') : (firstLead || 'Unassigned Lead');
+
         return {
           department: dep,
-          lead: availableLeads[0] || 'Unassigned Lead',
+          lead: leadVal,
           objective: `Provide technical estimation & SLA feasibility breakdown for ${dep}`,
           sla: '24 Hours',
           requiredInputs: ['Hours Estimate', 'Feasibility Note']
@@ -304,11 +307,46 @@ export default function RequestWizard() {
       return;
     }
 
+    const selectedManager = contractManagers.find(m => m.name === formData.contractManager);
+    const assignedToId = selectedManager ? selectedManager.id : 1;
+
     const payload = {
-      ...formData,
+      // Required Pydantic schema fields
+      title: `${formData.clientName} - ${formData.contractType}`,
+      description: formData.scopeSummary || `Request for ${formData.contractType} - ${formData.clientName}`,
+      
+      // Extended fields
+      requesterDepartment: formData.requesterDepartment,
+      businessUnit: formData.businessUnit,
+      entityType: formData.entityType,
+      entityName: formData.clientName,
+      primaryContactName: formData.primaryContactName,
+      primaryContactEmail: formData.primaryContactEmail,
+      jurisdiction: formData.jurisdiction,
+      
+      category: formData.contractCategory,
+      contractType: formData.contractType,
+      dealValue: parseFloat(formData.estimatedValue) || 0.0,
+      currency: formData.currency || 'USD',
+      pricingModel: formData.pricingModel,
+      targetEffectiveDate: formData.targetEffectiveDate,
+      targetDeliveryDate: formData.targetDeliveryDate,
+      priority: formData.priority,
+      
+      deliverables: formData.deliverables,
+      customTerms: formData.customClientTerms,
+      requireDependencies: formData.requirePreDraftingSupport,
+      assignedToId: assignedToId,
+      
       requestName: `${formData.clientName} - ${formData.contractType}`,
       requestNameDisplay: `${formData.clientName} (${formData.contractType})`,
-      dependencies: formData.requirePreDraftingSupport ? formData.dependencyMatrix : []
+      dependencies: formData.requirePreDraftingSupport ? formData.dependencyMatrix.map(item => ({
+        department: item.department,
+        assigneeName: item.lead,
+        taskObjective: item.objective,
+        slaDeadline: item.sla,
+        requiredInputs: item.requiredInputs || []
+      })) : []
     };
 
     const res = await submitNewRequest(payload, isDraft);
@@ -1258,9 +1296,13 @@ export default function RequestWizard() {
                                     onChange={(e) => updateMatrixItem(idx, 'lead', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-[#f4f9f2] border border-[#cbdcbe] text-xs font-bold text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
                                   >
-                                    {(departmentLeads && departmentLeads[item.department] ? departmentLeads[item.department] : ['Team Lead / Manager']).map((leadName, i) => (
-                                      <option key={i} value={leadName}>{leadName}</option>
-                                    ))}
+                                    {(departmentLeads && departmentLeads[item.department] ? departmentLeads[item.department] : ['Team Lead / Manager']).map((leadItem, i) => {
+                                      const name = typeof leadItem === 'object' && leadItem !== null ? (leadItem.name || '') : leadItem;
+                                      const label = typeof leadItem === 'object' && leadItem !== null ? `${leadItem.name} (${leadItem.role})` : leadItem;
+                                      return (
+                                        <option key={i} value={name}>{label}</option>
+                                      );
+                                    })}
                                   </select>
                                 </td>
                                 <td className="p-4 min-w-[250px]">

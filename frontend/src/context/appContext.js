@@ -10,7 +10,7 @@ export const MOCK_USERS = [
     id: 101,
     name: 'John Sales',
     email: 'john.sales@marketbytes.com',
-    department: 'Sales',
+    department: 'Sales Department',
     role: 'Requester',
     title: 'Account Executive'
   },
@@ -18,23 +18,23 @@ export const MOCK_USERS = [
     id: 102,
     name: 'Alex Miller',
     email: 'alex.miller@marketbytes.com',
-    department: 'Legal Operations',
-    role: 'Contract Manager',
-    title: 'Contract Specialist'
+    department: 'UI/UX & Engineering',
+    role: 'Department Lead',
+    title: 'UI/UX Design Lead'
   },
   {
     id: 103,
     name: 'Sarah Jenkins',
     email: 'sarah.jenkins@marketbytes.com',
-    department: 'Finance',
-    role: 'Reviewer',
-    title: 'Finance Director'
+    department: 'Contract Management',
+    role: 'Contract Manager',
+    title: 'Contract Specialist'
   },
   {
     id: 104,
     name: 'Elena Rostova',
     email: 'elena.rostova@marketbytes.com',
-    department: 'Legal',
+    department: 'Legal Counsel',
     role: 'Reviewer',
     title: 'General Counsel'
   },
@@ -73,6 +73,10 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(true);
+
+  // Sidebar Open/Collapse State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
   // ==========================================
   // Stage 1: Requester Portal States
@@ -386,6 +390,8 @@ export const AppProvider = ({ children }) => {
     error,
     setError,
     isAuthenticated,
+    isSidebarOpen,
+    toggleSidebar,
     contractRequests,
     setContractRequests,
     requestMetrics,

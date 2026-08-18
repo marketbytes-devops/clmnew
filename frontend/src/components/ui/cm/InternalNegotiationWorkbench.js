@@ -1,22 +1,7 @@
-"use client";
+import ESignatureModal from "@/components/ui/client/ESignatureModal";
+import axios from "axios";
 
-import React, { useState } from "react";
-import {
-  FileText,
-  Check,
-  X,
-  RotateCcw,
-  Send,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  Building2,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  History,
-  MessageSquare
-} from "lucide-react";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function InternalNegotiationWorkbench({
   negotiationData,
@@ -29,13 +14,40 @@ export default function InternalNegotiationWorkbench({
 
   const [actions, setActions] = useState({});
   const [cmNotes, setCmNotes] = useState("");
-  const [successMessage, setSuccessMessage] = useState(null);
+  const [showCountersignModal, setShowCountersignModal] = useState(false);
+  const [isCountersigning, setIsCountersigning] = useState(false);
+  const [countersignSuccess, setCountersignSuccess] = useState(false);
+
+  const isClientSigned = contract?.status === "CLIENT_SIGNED";
+  const isExecuted = contract?.status === "EXECUTED";
 
   const handleActionChange = (redlineId, action, counterWording = "") => {
     setActions((prev) => ({
       ...prev,
       [redlineId]: { action, counterWording }
     }));
+  };
+
+  const handleCountersignSubmit = async (sigData) => {
+    setIsCountersigning(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/client/countersign`, {
+        contract_id: contract.id,
+        signer_name: sigData.signer_name || "Sarah Jenkins",
+        signer_title: sigData.signer_title || "Contract Manager & Authorized Officer",
+        signature_data: sigData.signature_data,
+        audit_sha256: sigData.audit_sha256
+      });
+      setCountersignSuccess(true);
+      setShowCountersignModal(false);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to apply company countersignature.");
+    } finally {
+      setIsCountersigning(false);
+    }
   };
 
   const handleRedispatch = (e) => {
@@ -66,7 +78,13 @@ export default function InternalNegotiationWorkbench({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-bold text-slate-900">{contract.title}</h1>
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">
+              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
+                isExecuted 
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                  : isClientSigned 
+                  ? "bg-blue-100 text-blue-900 border-blue-300"
+                  : "bg-amber-50 text-amber-800 border-amber-300"
+              }`}>
                 {contract.status || "CLIENT_NEGOTIATION"}
               </span>
               <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-mono">
@@ -78,15 +96,72 @@ export default function InternalNegotiationWorkbench({
         </div>
 
         <div className="flex items-center gap-3">
+          {isClientSigned && (
+            <button
+              onClick={() => setShowCountersignModal(true)}
+              className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center gap-2 shadow-sm animate-bounce shadow-emerald-700/20"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Countersign & Execute Contract</span>
+            </button>
+          )}
           <span className="text-xs text-slate-500 flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
             <History className="w-3.5 h-3.5 text-blue-600" />
-            Next Version: <strong className="text-emerald-700">v1.1</strong>
+            Version: <strong className="text-emerald-700">{contract.version || "v1.0"}</strong>
           </span>
         </div>
       </header>
 
       {/* Main Container */}
       <div className="max-w-7xl w-full mx-auto p-6 space-y-6 flex-1 pb-24">
+        {/* CLIENT SIGNED ACTION BANNER */}
+        {isClientSigned && (
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-blue-100 rounded-2xl text-blue-800">
+                <ShieldCheck className="w-7 h-7 text-blue-700" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-base font-extrabold text-blue-950">Action Required: Client Has Executed Signature</h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-200 text-blue-900 font-bold text-[10px] uppercase font-mono">
+                    Client Signed
+                  </span>
+                </div>
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  <strong className="text-blue-950">{contract.client_name}</strong> has reviewed and signed this proposal. Please review the client signature and click <strong>"Countersign & Execute"</strong> to apply the company signature, lock the contract as EXECUTED, and dispatch dual copies.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCountersignModal(true)}
+              className="px-6 py-3 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs transition flex items-center gap-2 shadow-md"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Apply Company Countersignature</span>
+            </button>
+          </div>
+        )}
+
+        {/* EXECUTED LOCKED BANNER */}
+        {isExecuted && (
+          <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-emerald-100 rounded-2xl text-emerald-800">
+                <CheckCircle2 className="w-7 h-7 text-emerald-700" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-emerald-950">Contract Fully Executed & Cryptographically Locked</h3>
+                <p className="text-xs text-emerald-800">
+                  This contract has been signed by both <strong className="text-emerald-950">{contract.client_name}</strong> and <strong className="text-emerald-950">MarketBytes Enterprise</strong>. Signed copies have been emailed to both parties.
+                </p>
+              </div>
+            </div>
+            <span className="px-4 py-2 rounded-xl bg-emerald-200 text-emerald-900 font-bold text-xs font-mono border border-emerald-300">
+              STATUS: EXECUTED (Dual Signed)
+            </span>
+          </div>
+        )}
         {/* Banner Alert */}
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
@@ -264,6 +339,16 @@ export default function InternalNegotiationWorkbench({
           </div>
         </form>
       </div>
+
+      {/* Company Countersignature Modal */}
+      <ESignatureModal
+        isOpen={showCountersignModal}
+        onClose={() => setShowCountersignModal(false)}
+        contractTitle={contract?.title}
+        clientName="MarketBytes Enterprise (Company)"
+        onSignSubmit={handleCountersignSubmit}
+        isSigning={isCountersigning}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import os
 import io
 import json
 import pypdf
-import google.generativeai as genai
+from google import genai
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from app.models.ai import AIConfiguration, AIUsageLog
@@ -40,9 +40,8 @@ class AIService:
             return "Error: Gemini API Key is not set in environment or database configuration."
             
         try:
-            genai.configure(api_key=api_key)
+            client = genai.Client(api_key=api_key)
             model_name = config.model_name if config else "gemini-1.5-flash"
-            model = genai.GenerativeModel(model_name)
             
             # Convert messages to Gemini format
             prompt = ""
@@ -50,7 +49,10 @@ class AIService:
                 prompt += f"{msg.role}: {msg.content}\n"
             prompt += "assistant: "
             
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
             reply = response.text.strip()
             
             # Log usage
@@ -126,15 +128,15 @@ class AIService:
         """
         
         try:
-            genai.configure(api_key=api_key)
+            client = genai.Client(api_key=api_key)
             config = self._get_active_config()
             model_name = config.model_name if config else "gemini-1.5-flash"
-            model = genai.GenerativeModel(
-                model_name,
-                generation_config={"response_mime_type": "application/json"}
-            )
             
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config={'response_mime_type': 'application/json'}
+            )
             result = json.loads(response.text.strip())
             
             # Log usage
@@ -208,15 +210,15 @@ class AIService:
         """
         
         try:
-            genai.configure(api_key=api_key)
+            client = genai.Client(api_key=api_key)
             config = self._get_active_config()
             model_name = config.model_name if config else "gemini-1.5-flash"
-            model = genai.GenerativeModel(
-                model_name,
-                generation_config={"response_mime_type": "application/json"}
-            )
             
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config={'response_mime_type': 'application/json'}
+            )
             result = json.loads(response.text.strip())
             
             # Log usage
