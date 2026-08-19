@@ -69,6 +69,7 @@ class LoginHistoryOut(LoginHistoryBase):
 class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
+    name: Optional[str] = None
     is_active: bool = True
     role_id: Optional[int] = None
     department_id: Optional[int] = None

@@ -141,6 +141,10 @@ class User(Base):
     def role_id(self):
         return self.roles[0].id if self.roles else None
 
+    @property
+    def name(self):
+        return self.full_name
+
 
     submitted_requests = relationship("app.models.request.ContractRequest", foreign_keys="[app.models.request.ContractRequest.requester_id]", back_populates="requester")
     assigned_requests = relationship("app.models.request.ContractRequest", foreign_keys="[app.models.request.ContractRequest.assigned_to_id]", back_populates="assigned_to")

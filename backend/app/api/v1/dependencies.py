@@ -1,5 +1,6 @@
 import uuid
-from typing import List, Any
+from typing import List, Any, Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -154,4 +155,38 @@ def ai_estimate(
         ]
     }
     return suggestion
+
+class DispatchRequest(BaseModel):
+    dependency_ids: List[int]
+    dispatch_note: Optional[str] = None
+    proposal_url: Optional[str] = None
+
+@router.post("/dispatch")
+def dispatch_dependencies(
+    payload: DispatchRequest,
+    db: Session = Depends(get_db)
+):
+    dependencies = db.query(RequestDependency).filter(RequestDependency.id.in_(payload.dependency_ids)).all()
+    if not dependencies:
+        raise HTTPException(status_code=404, detail="No matching dependencies found")
+    
+    dispatched_list = []
+    for dep in dependencies:
+        dep.status = "Dispatched"
+        if not dep.access_token:
+            dep.access_token = f"task-{uuid.uuid4().hex[:8]}"
+        db.commit()
+        db.refresh(dep)
+        dispatched_list.append({
+            "id": dep.id,
+            "department": dep.department,
+            "assignee_name": dep.assignee_name,
+            "status": dep.status,
+            "access_token": dep.access_token
+        })
+    
+    return {
+        "message": f"Successfully dispatched proposal/draft to {len(dispatched_list)} dependency leads",
+        "dispatched": dispatched_list
+    }
 

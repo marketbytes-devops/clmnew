@@ -55,7 +55,13 @@ export const AppProvider = ({ children }) => {
       const stored = localStorage.getItem('user');
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          if (parsed) {
+            return {
+              ...parsed,
+              name: parsed.full_name || parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Logged In User')
+            };
+          }
         } catch (e) {
           // ignore
         }
@@ -260,13 +266,18 @@ export const AppProvider = ({ children }) => {
   };
 
   const login = (userData, token) => {
+    const normalizedUser = userData ? {
+      ...userData,
+      name: userData.full_name || userData.name || (userData.email ? userData.email.split('@')[0] : 'Logged In User')
+    } : null;
+
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('user', JSON.stringify(normalizedUser));
     if (typeof window !== 'undefined') {
       localStorage.removeItem('clm_custom_users');
       localStorage.removeItem('clm_custom_departments');
     }
-    setUser(userData);
+    setUser(normalizedUser);
     setIsAuthenticated(true);
     setUsers([]);
     setDepartments([]);

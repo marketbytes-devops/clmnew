@@ -15,95 +15,132 @@ export default function CMDashboardPage() {
   const { user, contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [loading, setLoading] = useState(false);
+  const [fetchedRequests, setFetchedRequests] = useState([]);
 
-  // Sample unified lifecycle contracts showcasing all 6 stages
-  const lifecycleData = [
-    {
-      id: 'REQ-2026-0891',
-      title: 'Proposal_E-Commerce_Web_App_v1.0.docx',
-      client: 'Acme Corp',
-      category: 'Sales / Proposal',
-      value: '$22,000',
-      stage: 'Stage 4: Internal Review',
-      stageSlug: '/cm/review',
-      status: 'Internal Review',
-      priority: 'High',
-      manager: 'Sarah Jenkins',
-      updated: '10 mins ago',
-      badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
-    },
-    {
-      id: 'REQ-2026-0902',
-      title: 'Global Master Services Agreement (MSA)',
-      client: 'Stark Industries',
-      category: 'Revenue / MSA',
-      value: '$120,000',
-      stage: 'Stage 2: Dependency Hub',
-      stageSlug: '/cm/requests',
-      status: 'Dependency Gathering',
-      priority: 'Urgent',
-      manager: 'Sarah Jenkins',
-      updated: '1 hour ago',
-      badgeColor: 'bg-teal-50 text-teal-700 border-teal-200'
-    },
-    {
-      id: 'REQ-2026-0877',
-      title: 'Cloud Infrastructure Migration SOW v1.1',
-      client: 'Wayne Enterprises',
-      category: 'Statement of Work',
-      value: '$85,000',
-      stage: 'Stage 5: Client Negotiation',
-      stageSlug: '/cm/negotiation',
-      status: 'Client Negotiation',
-      priority: 'High',
-      manager: 'Sarah Jenkins',
-      updated: '3 hours ago',
-      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
-    },
-    {
-      id: 'REQ-2026-0850',
-      title: 'Annual Enterprise SaaS License Agreement',
-      client: 'Cyberdyne Systems',
-      category: 'Software License',
-      value: '$45,000',
-      stage: 'Stage 3: Authoring & Drafting',
-      stageSlug: '/cm/drafting',
-      status: 'Drafting In Progress',
-      priority: 'Medium',
-      manager: 'Sarah Jenkins',
-      updated: 'Yesterday',
-      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
-    },
-    {
-      id: 'CTR-2026-0092',
-      title: 'Digital Experience Platform SOW (Executed)',
-      client: 'TechCorp International',
-      category: 'Executed SOW',
-      value: '$92,000',
-      stage: 'Stage 6: Smart Repository',
-      stageSlug: '/cm/repository',
-      status: 'Active Vault',
-      priority: 'Low',
-      manager: 'Sarah Jenkins',
-      updated: '2 days ago',
-      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    },
-    {
-      id: 'REQ-2026-0915',
-      title: 'Vendor Subcontractor Master Agreement',
-      client: 'Apex Global Logistics',
-      category: 'Procurement / Vendor',
-      value: '$34,000',
-      stage: 'Stage 1: Intake & Request',
-      stageSlug: '/cm/requests',
-      status: 'Pending Intake',
-      priority: 'Medium',
-      manager: 'Sarah Jenkins',
-      updated: '30 mins ago',
-      badgeColor: 'bg-slate-100 text-slate-700 border-slate-200'
-    }
-  ];
+  useEffect(() => {
+    const loadRequests = async () => {
+      setLoading(true);
+      try {
+        const res = await APIService.getRequests().catch(() => []);
+        setFetchedRequests(Array.isArray(res) ? res : []);
+      } catch (err) {
+        console.error("Failed to load CM requests", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRequests();
+  }, [contextRequests]);
+
+  // Combine live submitted requests with baseline lifecycle samples
+  const combinedRequestsList = React.useMemo(() => {
+    const map = new Map();
+    
+    // Add live requests from context & API first
+    const allLive = [...(fetchedRequests || []), ...(contextRequests || [])];
+    allLive.forEach(r => {
+      if (r && (r.id || r.tracking_id || r.title || r.requestName)) {
+        const key = r.tracking_id || (r.id ? `REQ-${r.id}` : r.title || r.requestName);
+        if (!map.has(key)) {
+          const valNum = r.deal_value || r.estimatedValue || r.value || 0;
+          map.set(key, {
+            id: key,
+            title: r.title || r.requestName || (r.entity_name ? `${r.entity_name} - ${r.contract_type || 'Request'}` : 'Contract Request'),
+            client: r.entity_name || r.clientName || r.counterparty || r.primary_contact_name || 'Acme Corp',
+            category: r.category || r.contract_type || 'Sales / Proposal',
+            value: typeof valNum === 'number' ? `$${valNum.toLocaleString()}` : String(valNum),
+            stage: r.status === 'Drafting In Progress' ? 'Stage 3: Authoring & Drafting' : (r.status === 'In Review' ? 'Stage 4: Internal Review' : 'Stage 1: Intake & Request'),
+            stageSlug: r.status === 'Drafting In Progress' ? '/cm/drafting' : (r.status === 'In Review' ? '/cm/review' : '/cm/requests'),
+            status: r.status || r.current_status || 'Pending Intake',
+            priority: r.priority || 'Medium',
+            manager: r.assigned_to?.full_name || 'Sarah Jenkins',
+            updated: 'Just now',
+            badgeColor: r.status === 'Drafting In Progress' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-[#eaf5ea] text-[#1e5622] border-emerald-200'
+          });
+        }
+      }
+    });
+
+    // Add baseline demo samples
+    const sampleData = [
+      {
+        id: 'REQ-2026-0891',
+        title: 'Proposal_E-Commerce_Web_App_v1.0.docx',
+        client: 'Acme Corp',
+        category: 'Sales / Proposal',
+        value: '$22,000',
+        stage: 'Stage 4: Internal Review',
+        stageSlug: '/cm/review',
+        status: 'Internal Review',
+        priority: 'High',
+        manager: 'Sarah Jenkins',
+        updated: '10 mins ago',
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
+      },
+      {
+        id: 'REQ-2026-0902',
+        title: 'Global Master Services Agreement (MSA)',
+        client: 'Stark Industries',
+        category: 'Revenue / MSA',
+        value: '$120,000',
+        stage: 'Stage 2: Dependency Hub',
+        stageSlug: '/cm/requests',
+        status: 'Dependency Gathering',
+        priority: 'Urgent',
+        manager: 'Sarah Jenkins',
+        updated: '1 hour ago',
+        badgeColor: 'bg-teal-50 text-teal-700 border-teal-200'
+      },
+      {
+        id: 'REQ-2026-0877',
+        title: 'Cloud Infrastructure Migration SOW v1.1',
+        client: 'Wayne Enterprises',
+        category: 'Statement of Work',
+        value: '$85,000',
+        stage: 'Stage 5: Client Negotiation',
+        stageSlug: '/cm/negotiation',
+        status: 'Client Negotiation',
+        priority: 'High',
+        manager: 'Sarah Jenkins',
+        updated: '3 hours ago',
+        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
+      },
+      {
+        id: 'REQ-2026-0850',
+        title: 'Annual Enterprise SaaS License Agreement',
+        client: 'Cyberdyne Systems',
+        category: 'Software License',
+        value: '$45,000',
+        stage: 'Stage 3: Authoring & Drafting',
+        stageSlug: '/cm/drafting',
+        status: 'Drafting In Progress',
+        priority: 'Medium',
+        manager: 'Sarah Jenkins',
+        updated: 'Yesterday',
+        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+      },
+      {
+        id: 'CTR-2026-0092',
+        title: 'Digital Experience Platform SOW (Executed)',
+        client: 'TechCorp International',
+        category: 'Executed SOW',
+        value: '$92,000',
+        stage: 'Stage 6: Smart Repository',
+        stageSlug: '/cm/repository',
+        status: 'Active Vault',
+        priority: 'Low',
+        manager: 'Sarah Jenkins',
+        updated: '2 days ago',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      }
+    ];
+
+    sampleData.forEach(item => {
+      if (!map.has(item.id)) map.set(item.id, item);
+    });
+
+    return Array.from(map.values());
+  }, [fetchedRequests, contextRequests]);
 
   const stages = [
     {
@@ -111,7 +148,7 @@ export default function CMDashboardPage() {
       name: 'Intake & Requests',
       desc: 'Capture requirements & assign CM',
       icon: Inbox,
-      count: '4 Requests',
+      count: `${combinedRequestsList.filter(r => r.stage.includes('Intake') || r.stage.includes('Dependency')).length} Requests`,
       href: '/cm/requests',
       color: 'from-amber-500/10 to-amber-500/5 text-amber-700 border-amber-200/80',
       iconBg: 'bg-amber-100 text-amber-700'
@@ -131,7 +168,7 @@ export default function CMDashboardPage() {
       name: 'Authoring Studio',
       desc: 'Smart tokens & clause library',
       icon: PenTool,
-      count: '2 In Drafting',
+      count: `${combinedRequestsList.filter(r => r.stage.includes('Drafting') || r.stage.includes('Authoring')).length} In Drafting`,
       href: '/cm/drafting',
       color: 'from-blue-500/10 to-blue-500/5 text-blue-700 border-blue-200/80',
       iconBg: 'bg-blue-100 text-blue-700'
@@ -141,7 +178,7 @@ export default function CMDashboardPage() {
       name: 'Internal Approvals',
       desc: 'Ops, Finance & Legal governance',
       icon: CheckSquare,
-      count: '3 In Review',
+      count: `${combinedRequestsList.filter(r => r.stage.includes('Review')).length} In Review`,
       href: '/cm/review',
       color: 'from-emerald-500/10 to-emerald-500/5 text-emerald-800 border-emerald-200/80',
       iconBg: 'bg-emerald-100 text-emerald-700'
@@ -151,7 +188,7 @@ export default function CMDashboardPage() {
       name: 'Client Negotiation',
       desc: 'Dispatched & external redlines',
       icon: Handshake,
-      count: '2 In Negotiation',
+      count: `${combinedRequestsList.filter(r => r.stage.includes('Negotiation')).length} In Negotiation`,
       href: '/cm/negotiation',
       color: 'from-purple-500/10 to-purple-500/5 text-purple-700 border-purple-200/80',
       iconBg: 'bg-purple-100 text-purple-700'
@@ -168,7 +205,7 @@ export default function CMDashboardPage() {
     }
   ];
 
-  const filteredContracts = lifecycleData.filter(item => {
+  const filteredContracts = combinedRequestsList.filter(item => {
     const matchesSearch = 
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.client.toLowerCase().includes(searchTerm.toLowerCase()) ||

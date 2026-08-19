@@ -34,16 +34,16 @@ export default function ContractRequestsPage() {
       });
 
       const list = Array.from(reqMap.values()).map(r => ({
-        id: r.id || `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
-        title: r.title || r.requestName || 'Contract Request',
-        requestorName: r.requestorName || r.requestor || 'Internal Requestor',
-        department: r.department || 'Legal Operations',
+        id: r.tracking_id || (typeof r.id === 'string' || typeof r.id === 'number' ? `REQ-${r.id}` : `REQ-${Math.floor(1000 + Math.random() * 9000)}`),
+        title: r.title || r.requestName || (r.entity_name ? `${r.entity_name} - ${r.contract_type || 'Contract Request'}` : 'Contract Request'),
+        requestorName: r.requestorName || r.primary_contact_name || (r.requester && r.requester.full_name) || r.requestor || 'Internal Requestor',
+        department: r.department || r.requester_department || 'Legal Operations',
         contractType: r.contractType || r.contract_type || 'Master Services Agreement (MSA)',
-        counterparty: r.counterparty || r.secondPartyName || 'External Counterparty',
+        counterparty: r.counterparty || r.entity_name || r.secondPartyName || 'External Counterparty',
         priority: r.priority || 'Medium',
-        status: r.status || 'Pending Intake',
+        status: r.status || r.current_status || 'Pending Intake',
         createdAt: r.createdAt || r.created_at || new Date().toISOString(),
-        estimatedValue: r.estimatedValue || r.value || 50000,
+        estimatedValue: r.estimatedValue !== undefined ? r.estimatedValue : (r.deal_value !== undefined ? r.deal_value : (r.value !== undefined ? r.value : 0)),
         dependenciesCount: r.dependencies ? r.dependencies.length : 0,
         description: r.description || r.purpose || 'Contract request submitted for review and pre-drafting processing.'
       }));
