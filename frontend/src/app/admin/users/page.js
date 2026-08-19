@@ -25,6 +25,7 @@ const getDefaultPermissionsMatrix = () => {
 export default function UsersList() {
   const { users: contextUsers, departments: contextDepartments, addUser, saveUsersLocally } = useAppContext();
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,7 +44,6 @@ export default function UsersList() {
     phone: '',
     employeeId: '',
     avatarUrl: '',
-    password: 'password123',
 
     // Step 2 — Employment Details
     designation: 'Senior Legal Counsel',
@@ -54,6 +54,7 @@ export default function UsersList() {
     workLocation: 'New York Corporate HQ',
 
     // Step 3 — Role & Permissions
+    role_id: '',
     role: 'Contract Manager',
     modules: ['Contracts', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'],
     permissionLevel: 'Standard Edit',
@@ -70,14 +71,14 @@ export default function UsersList() {
       phone: '',
       employeeId: '',
       avatarUrl: '',
-      password: 'password123',
       designation: 'Senior Legal Counsel',
       department: 'Legal Operations',
       employeeType: 'Full-Time',
       joiningDate: '2026-08-01',
       reportingManager: 'Elena Rostova (General Counsel)',
       workLocation: 'New York Corporate HQ',
-      role: 'Contract Manager',
+      role_id: roles.length > 0 ? roles[0].id : '',
+      role: roles.length > 0 ? roles[0].name : 'Contract Manager',
       modules: ['Contracts', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'],
       permissionLevel: 'Standard Edit',
       specificPermissions: ['Create Contracts', 'Approve Requests', 'Edit Clauses', 'Export Reports'],
@@ -89,17 +90,20 @@ export default function UsersList() {
   const fetchUsersData = async () => {
     setLoading(true);
     try {
-      const [data, deptsData] = await Promise.all([
+      const [data, deptsData, rolesData] = await Promise.all([
         APIService.getAllUsers().catch(() => []),
-        APIService.getDepartments().catch(() => [])
+        APIService.getDepartments().catch(() => []),
+        APIService.getAllRoles().catch(() => [])
       ]);
       
       const map = new Map();
       (data || []).forEach(u => {
-        if (u && (u.id || u.email)) map.set(u.id || u.email, u);
+        if (u && u.email) map.set(u.email.trim().toLowerCase(), u);
       });
       (contextUsers || []).forEach(u => {
-        if (u && (u.id || u.email)) map.set(u.id || u.email, u);
+        if (u && u.email && !map.has(u.email.trim().toLowerCase())) {
+          map.set(u.email.trim().toLowerCase(), u);
+        }
       });
 
       const combinedList = Array.from(map.values());
@@ -111,6 +115,14 @@ export default function UsersList() {
       (deptsData || []).forEach(d => { if (d && d.name) deptsMap.set(d.name.toLowerCase(), d.name); });
       (contextDepartments || []).forEach(d => { if (d && d.name) deptsMap.set(d.name.toLowerCase(), d.name); });
       setAvailableDepartments(Array.from(deptsMap.values()));
+
+      // Set fetched roles
+      const fetchedRoles = Array.isArray(rolesData) ? rolesData : [];
+      setRoles(fetchedRoles);
+      if (fetchedRoles.length > 0 && !formData.role_id) {
+        setFormData(prev => ({ ...prev, role_id: fetchedRoles[0].id, role: fetchedRoles[0].name }));
+      }
+
     } catch (err) {
       console.error("Failed to fetch users from backend", err);
       setUsers(contextUsers || []);
@@ -125,11 +137,21 @@ export default function UsersList() {
 
   const handleCreateUserSubmit = async (e) => {
     if (e) e.preventDefault();
+    const cleanEmail = formData.email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      return alert("Email address is required");
+    }
+
+    if (!formData.name.trim()) {
+      return alert("Full Name is required");
+    }
+
     setCreating(true);
     const payload = {
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
+      name: formData.name.trim(),
+      email: cleanEmail,
+      role_id: formData.role_id,
       role: formData.role,
       department: formData.department,
       designation: formData.designation,
@@ -146,26 +168,17 @@ export default function UsersList() {
       specific_permissions: formData.specificPermissions
     };
 
-    const newUserObj = {
-      id: Date.now(),
-      email: formData.email,
-      full_name: formData.name,
-      role: { name: formData.role },
-      department: { name: formData.department },
-      is_active: true,
-      created_at: new Date().toISOString()
-    };
-
     try {
-      const res = await APIService.createUser(payload).catch(() => null);
-      const created = res || newUserObj;
-      addUser(created);
-      setIsModalOpen(false);
-      resetForm();
+      const res = await APIService.createUser(payload);
+      if (res) {
+        addUser(res);
+        setIsModalOpen(false);
+        resetForm();
+        fetchUsersData();
+      }
     } catch (err) {
-      addUser(newUserObj);
-      setIsModalOpen(false);
-      resetForm();
+      const errorMsg = err.response?.data?.detail || err.message || "Email is already registered or invalid input";
+      alert(errorMsg);
     } finally {
       setCreating(false);
     }
@@ -619,15 +632,31 @@ export default function UsersList() {
                     </label>
                     <select 
                       value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      onChange={(e) => {
+                        const selectedName = e.target.value;
+                        const selectedRole = roles.find(r => r.name === selectedName);
+                        setFormData({ 
+                          ...formData, 
+                          role: selectedName,
+                          role_id: selectedRole ? selectedRole.id : ''
+                        });
+                      }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                     >
-                      <option value="Admin">Admin</option>
-                      <option value="Contract Manager">Contract Manager</option>
-                      <option value="Legal Counsel">Legal Counsel</option>
-                      <option value="Approver">Approver</option>
-                      <option value="Requester">Requester</option>
-                      <option value="Viewer">Viewer</option>
+                      {roles.length > 0 ? (
+                        roles.map(r => (
+                          <option key={r.id} value={r.name}>{r.name}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Admin">Admin</option>
+                          <option value="Contract Manager">Contract Manager</option>
+                          <option value="Legal Counsel">Legal Counsel</option>
+                          <option value="Approver">Approver</option>
+                          <option value="Requester">Requester</option>
+                          <option value="Viewer">Viewer</option>
+                        </>
+                      )}
                     </select>
                   </div>
 
