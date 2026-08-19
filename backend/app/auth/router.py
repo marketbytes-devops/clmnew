@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
+import os
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Request
 from typing import Optional
 import re
 import random
@@ -8,9 +9,10 @@ import secrets
 
 from sqlalchemy.orm import Session
 from ..database import get_db
+import app.models  # noqa: F401
 from app.core.models import User, Organization, Department, Role, PendingRegistration
 from . import schemas, utils
-from .dependencies import get_current_admin_user
+from .dependencies import get_current_admin_user, get_current_user
 
 router = APIRouter(
     prefix="/auth",
@@ -127,9 +129,33 @@ def verify_registration(otp_data: schemas.OTPVerify, db: Session = Depends(get_d
         dept = Department(org_id=new_org.id, name=dept_name, description=f"{dept_name.capitalize()} Department")
         db.add(dept)
     
-    # Create admin role for this organization
-    admin_role = Role(org_id=new_org.id, name="admin", description="Organization Administrator")
-    db.add(admin_role)
+    # Create standard roles for this organization
+    standard_roles = [
+        ("Admin", "Organization Administrator", True, {"all": True}),
+        ("Contract Manager", "Full control over contract drafting, review, negotiation, and execution", True, {"contracts": {"view": True, "create": True, "edit": True, "delete": True, "approve": True, "reject": True}}),
+        ("Requester", "Create, submit, and track contract requests", True, {"contracts": {"view": True, "create": True, "edit": True}}),
+        ("Reviewer", "Review, redline, and provide department feedback on contracts", True, {"contracts": {"view": True, "edit": True, "comment": True}}),
+        ("Department Lead", "Approve dependencies and assign department reviewers", True, {"dependencies": {"approve": True, "assign": True}}),
+        ("Approver", "Signatory and final executive contract approver", True, {"contracts": {"approve": True, "sign": True}})
+    ]
+    
+    admin_role = None
+    for r_name, r_desc, is_sys, perms in standard_roles:
+        existing = db.query(Role).filter(Role.org_id == new_org.id, func.lower(Role.name) == r_name.lower()).first()
+        if not existing:
+            created_role = Role(
+                org_id=new_org.id,
+                name=r_name,
+                description=r_desc,
+                is_system_role=is_sys,
+                permissions_json=perms
+            )
+            db.add(created_role)
+            if r_name.lower() == "admin":
+                admin_role = created_role
+        elif r_name.lower() == "admin":
+            admin_role = existing
+            
     db.flush()
 
     # Create new user
@@ -194,12 +220,22 @@ def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get
     access_token = utils.create_access_token(data=token_data)
     refresh_token = utils.create_refresh_token(data=token_data)
     
-    # Set HttpOnly cookie for refresh token
+    is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    
+    # Set HttpOnly cookies for both access and refresh tokens
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="lax",
+        max_age=24 * 60 * 60 # 1 day
+    )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True, # Set to True if using HTTPS
+        secure=is_prod,
         samesite="lax",
         max_age=7 * 24 * 60 * 60 # 7 days
     )
@@ -285,17 +321,19 @@ def set_password(data: schemas.SetPasswordRequest, db: Session = Depends(get_db)
     return {"message": "Password updated successfully"}
 @router.post("/refresh", response_model=schemas.TokenRefreshResponse)
 def refresh_token(
+    request: Request,
     response: Response,
     refresh_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db)
 ):
-    if not refresh_token:
+    token_to_check = refresh_token or request.cookies.get("refresh_token")
+    if not token_to_check:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token missing",
         )
         
-    payload = utils.decode_token(refresh_token)
+    payload = utils.decode_token(token_to_check)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -309,7 +347,12 @@ def refresh_token(
             detail="Invalid token payload",
         )
         
-    db_user = db.query(User).filter(User.id == int(user_id)).first()
+    if str(user_id).isdigit():
+        db_user = db.query(User).filter(User.id == int(user_id)).first()
+    else:
+        from sqlalchemy import func
+        db_user = db.query(User).filter(func.lower(User.email) == str(user_id).lower()).first()
+        
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -335,17 +378,42 @@ def refresh_token(
     access_token = utils.create_access_token(data=token_data)
     new_refresh_token = utils.create_refresh_token(data=token_data)
     
-    # Set new HttpOnly cookie for refresh token
+    is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    
+    # Set updated HttpOnly cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="lax",
+        max_age=24 * 60 * 60
+    )
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=True,
+        secure=is_prod,
         samesite="lax",
         max_age=7 * 24 * 60 * 60
     )
     
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": db_user
     }
+
+@router.get("/me", response_model=schemas.UserResponse)
+def get_current_user_profile(
+    current_user: User = Depends(get_current_user)
+):
+    return current_user
+
+@router.post("/logout", response_model=schemas.MessageResponse)
+def logout(response: Response):
+    is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    response.delete_cookie(key="access_token", samesite="lax", secure=is_prod)
+    response.delete_cookie(key="refresh_token", samesite="lax", secure=is_prod)
+    return {"message": "Logged out successfully"}
+

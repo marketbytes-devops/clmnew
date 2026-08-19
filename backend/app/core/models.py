@@ -41,10 +41,10 @@ class Organization(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
-    settings = relationship("app.core.models.OrganizationSetting", back_populates="organization", uselist=False, cascade="all, delete-orphan")
-    departments = relationship("app.core.models.Department", back_populates="organization", cascade="all, delete-orphan")
-    users = relationship("app.core.models.User", back_populates="organization", cascade="all, delete-orphan")
-    roles = relationship("app.core.models.Role", back_populates="organization", cascade="all, delete-orphan")
+    settings = relationship("OrganizationSetting", back_populates="organization", uselist=False, cascade="all, delete-orphan")
+    departments = relationship("Department", back_populates="organization", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
+    roles = relationship("Role", back_populates="organization", cascade="all, delete-orphan")
 
 class OrganizationSetting(Base):
     __tablename__ = 'organization_settings'
@@ -60,7 +60,7 @@ class OrganizationSetting(Base):
     max_contracts = Column(Integer, default=100)
     retention_days = Column(Integer, default=365)
 
-    organization = relationship("app.core.models.Organization", back_populates="settings")
+    organization = relationship("Organization", back_populates="settings")
 
 class SubscriptionPlan(Base):
     __tablename__ = 'subscription_plans'
@@ -86,8 +86,8 @@ class SubscriptionHistory(Base):
     status = Column(Enum(SubscriptionStatusEnum), default=SubscriptionStatusEnum.active)
     amount_paid = Column(Numeric(10, 2))
 
-    organization = relationship("app.core.models.Organization")
-    plan = relationship("app.core.models.SubscriptionPlan")
+    organization = relationship("Organization")
+    plan = relationship("SubscriptionPlan")
 
 class Department(Base):
     __tablename__ = 'departments'
@@ -98,8 +98,8 @@ class Department(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text)
 
-    organization = relationship("app.core.models.Organization", back_populates="departments")
-    users = relationship("app.core.models.User", back_populates="department", foreign_keys=lambda: User.department_id)
+    organization = relationship("Organization", back_populates="departments")
+    users = relationship("User", back_populates="department", foreign_keys=lambda: User.department_id)
 
 class UserRole(Base):
     __tablename__ = 'user_roles'
@@ -129,9 +129,9 @@ class User(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
-    organization = relationship("app.core.models.Organization", back_populates="users")
-    department = relationship("app.core.models.Department", back_populates="users")
-    roles = relationship("app.core.models.Role", secondary='user_roles', back_populates="users")
+    organization = relationship("Organization", back_populates="users")
+    department = relationship("Department", back_populates="users")
+    roles = relationship("Role", secondary='user_roles', back_populates="users")
 
     @property
     def role(self):
@@ -142,9 +142,9 @@ class User(Base):
         return self.roles[0].id if self.roles else None
 
 
-    submitted_requests = relationship("app.models.request.ContractRequest", foreign_keys="[app.models.request.ContractRequest.requester_id]", back_populates="requester")
-    assigned_requests = relationship("app.models.request.ContractRequest", foreign_keys="[app.models.request.ContractRequest.assigned_to_id]", back_populates="assigned_to")
-    login_history = relationship("app.models.user.LoginHistory", back_populates="user", cascade="all, delete-orphan")
+    submitted_requests = relationship("ContractRequest", foreign_keys="ContractRequest.requester_id", back_populates="requester")
+    assigned_requests = relationship("ContractRequest", foreign_keys="ContractRequest.assigned_to_id", back_populates="assigned_to")
+    login_history = relationship("LoginHistory", back_populates="user", cascade="all, delete-orphan")
 
 class Role(Base):
     __tablename__ = 'roles'
@@ -156,10 +156,10 @@ class Role(Base):
     description = Column(Text)
     is_system_role = Column(Boolean, default=False)
 
-    organization = relationship("app.core.models.Organization", back_populates="roles")
+    organization = relationship("Organization", back_populates="roles")
     permissions_json = Column(JSON, nullable=True)
-    permissions = relationship("app.core.models.RolePermission", back_populates="role", cascade="all, delete-orphan")
-    users = relationship("app.core.models.User", secondary='user_roles', back_populates="roles")
+    permissions = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
+    users = relationship("User", secondary='user_roles', back_populates="roles")
 
 class RolePermission(Base):
     __tablename__ = 'role_permissions'
@@ -175,7 +175,7 @@ class RolePermission(Base):
     can_approve = Column(Boolean, default=False)
     can_assign = Column(Boolean, default=False)
 
-    role = relationship("app.core.models.Role", back_populates="permissions")
+    role = relationship("Role", back_populates="permissions")
 
 class UserLoginHistory(Base):
     __tablename__ = 'user_login_history'
@@ -188,4 +188,10 @@ class UserLoginHistory(Base):
     login_time = Column(TIMESTAMP, server_default=func.now())
     success = Column(Boolean, default=True)
 
-    user = relationship("app.core.models.User")
+    user = relationship("User")
+
+# Import all models to ensure complete SQLAlchemy registry resolution
+try:
+    import app.models  # noqa: F401
+except Exception:
+    pass
