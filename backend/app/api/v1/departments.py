@@ -5,20 +5,26 @@ from app.database import get_db
 from app.models.user import Department, User
 from app.schemas.user import DepartmentOut, DepartmentCreate, DepartmentUpdate
 
+from app.core.tenant import get_current_tenant_user, scope_query
+
 router = APIRouter()
 
 @router.get("/", response_model=List[DepartmentOut])
-def list_departments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    departments = db.query(Department).offset(skip).limit(limit).all()
+def list_departments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_tenant_user)):
+    query = scope_query(db.query(Department), Department, current_user)
+    departments = query.offset(skip).limit(limit).all()
     return departments
 
 @router.post("/", response_model=DepartmentOut)
-def create_department(department: DepartmentCreate, db: Session = Depends(get_db)):
-    db_department = db.query(Department).filter(Department.name == department.name).first()
+def create_department(department: DepartmentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_tenant_user)):
+    target_org_id = current_user.org_id if current_user and current_user.org_id else 1
+    db_department = db.query(Department).filter(Department.name == department.name, Department.org_id == target_org_id).first()
     if db_department:
         raise HTTPException(status_code=400, detail="Department already exists")
     
-    new_department = Department(**department.model_dump())
+    dept_data = department.model_dump()
+    dept_data["org_id"] = target_org_id
+    new_department = Department(**dept_data)
     db.add(new_department)
     db.commit()
     db.refresh(new_department)

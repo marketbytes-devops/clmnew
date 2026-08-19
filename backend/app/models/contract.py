@@ -8,6 +8,7 @@ class Contract(Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(String(50), primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), index=True, nullable=False, default=1)
     title = Column(String(255), index=True, nullable=False)
     client_name = Column(String(255), nullable=True)
     client_email = Column(String(255), nullable=True)

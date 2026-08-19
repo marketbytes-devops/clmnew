@@ -5,6 +5,10 @@ from app.database import get_db
 from app.models.user import User, Department, Role, LoginHistory
 from app.schemas.user import UserOut, UserCreate, UserUpdate, PasswordReset, LoginHistoryOut
 from app.core.security import get_password_hash
+from app.auth.utils import send_invite_email
+import secrets
+from datetime import datetime, timedelta
+
 # from app.core.dependencies import RoleChecker
 
 router = APIRouter()
@@ -37,18 +41,36 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
         
-    hashed_password = get_password_hash(user.password)
+    password_to_hash = user.password if user.password else secrets.token_urlsafe(16)
+    hashed_password = get_password_hash(password_to_hash)
+    
+    reset_token = secrets.token_urlsafe(32)
+    reset_token_expires = datetime.utcnow() + timedelta(hours=24)
+    
     new_user = User(
         email=user.email,
-        hashed_password=hashed_password,
+        password_hash=hashed_password,
         full_name=user.full_name,
         role_id=user.role_id,
         department_id=user.department_id,
-        is_active=user.is_active
+        is_active=user.is_active,
+        reset_token=reset_token,
+        reset_token_expires=reset_token_expires
     )
+    # Note: org_id might be needed if it's required by the model. 
+    # If the endpoint fails with missing org_id, it will need to be provided.
+    if hasattr(user, 'org_id') and user.org_id:
+        new_user.org_id = user.org_id
+    elif hasattr(User, 'org_id') and not new_user.org_id:
+        new_user.org_id = 1 # Fallback for now if missing
+        
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    invite_link = f"http://localhost:3000/set-password?token={reset_token}"
+    send_invite_email(new_user.email, invite_link)
+    
     return new_user
 
 @router.put("/{user_id}", response_model=UserOut)

@@ -7,6 +7,7 @@ class ContractRequest(Base):
     __tablename__ = "contract_requests"
 
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), index=True, nullable=False, default=1)
     tracking_id = Column(String(50), index=True, nullable=True) # e.g. REQ-2026-0891
     title = Column(String(255), index=True, nullable=False)
     description = Column(Text, nullable=False)

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '../../api/auth';
 import { useAppContext } from '../../context/appContext';
+import { getRoleRedirectPath } from '../../utils/roleUtils';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -19,7 +20,8 @@ export default function LoginForm() {
     try {
       const data = await loginUser(formData);
       login(data.user, data.access_token);
-      router.push('/');
+      const redirectPath = getRoleRedirectPath(data.user);
+      router.push(redirectPath);
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password');
     } finally {
@@ -28,7 +30,7 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 text-gray-900 p-4">
       <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-xl w-full max-w-md transition-all duration-300 hover:shadow-2xl">
         <h2 className="text-3xl font-bold mb-2 text-center text-gray-800">Welcome Back</h2>
         <p className="text-gray-500 text-center mb-8">Sign in to your account</p>
@@ -46,7 +48,7 @@ export default function LoginForm() {
               type="email"
               required
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400"
-              placeholder="john.doe@acme.com"
+              placeholder="admin@clm.com"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
             />

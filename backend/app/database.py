@@ -18,6 +18,8 @@ def auto_migrate():
     try:
         with engine.connect() as conn:
             cols_to_add = [
+                ("contract_requests", "org_id", "INT DEFAULT 1"),
+                ("contracts", "org_id", "INT DEFAULT 1"),
                 ("contracts", "version", "VARCHAR(20) DEFAULT 'v1.0'"),
                 ("contracts", "version_notes", "TEXT NULL"),
                 ("contracts", "last_redispatched_at", "DATETIME NULL"),

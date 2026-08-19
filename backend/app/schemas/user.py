@@ -10,7 +10,7 @@ class Token(BaseModel):
 class RoleBase(BaseModel):
     name: str
     description: Optional[str] = None
-    permissions: Optional[Dict[str, Any]] = None
+    permissions: Optional[Any] = None
 
 class RoleCreate(RoleBase):
     pass
@@ -75,7 +75,7 @@ class UserBase(BaseModel):
     profile_picture_url: Optional[str] = None
 
 class UserCreate(UserBase):
-    password: str
+    password: Optional[str] = None
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
@@ -93,7 +93,7 @@ class UserOut(UserBase):
     last_login: Optional[datetime] = None
     created_at: datetime
     
-    role: Optional[RoleOut] = None
+    role: Optional[str] = "Requester"
     department: Optional[DepartmentOut] = None
     
     class Config:
