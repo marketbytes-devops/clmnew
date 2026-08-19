@@ -1,7 +1,7 @@
 'use client';
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as apiService from '../service/apiService';
+import api, { setAuthToken } from '../api/api';
 
 const AppContext = createContext();
 
@@ -59,7 +59,8 @@ export const AppProvider = ({ children }) => {
           if (parsed) {
             return {
               ...parsed,
-              name: parsed.full_name || parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Logged In User')
+              name: parsed.full_name || parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Logged In User'),
+              full_name: parsed.full_name || parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Logged In User')
             };
           }
         } catch (e) {
@@ -71,12 +72,7 @@ export const AppProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !!localStorage.getItem('token') && !!localStorage.getItem('user');
-    }
-    return false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Sidebar Open/Collapse State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -196,22 +192,20 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Initialize Auth & Load initial Stage 1 data
+  // Initialize Auth & Load initial Stage 1 data via HttpOnly Cookie Session
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
-
-        if (token && storedUser) {
-          setUser(JSON.parse(storedUser));
+        // Fetch current user from server using HttpOnly session cookie
+        const res = await api.get('/auth/me');
+        if (res.data) {
+          setUser(res.data);
           setIsAuthenticated(true);
         } else {
           setUser(null);
           setIsAuthenticated(false);
         }
       } catch (err) {
-        console.error('Error initializing AppContext:', err);
         setUser(null);
         setIsAuthenticated(false);
       } finally {
@@ -249,15 +243,12 @@ export const AppProvider = ({ children }) => {
 
   const [roles, setRoles] = useState([]);
 
-  // Example of centralizing state logic for the Admin
+  // Centralized state logic for Admin
   const fetchAdminData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      
       const { APIService } = await import('../service/apiService');
-      const usersData = await APIService.getAllUsers(token);
-      const rolesData = await APIService.getAllRoles(token);
+      const usersData = await APIService.getAllUsers();
+      const rolesData = await APIService.getAllRoles();
       setUsers(usersData);
       setRoles(rolesData);
     } catch (err) {
@@ -268,12 +259,17 @@ export const AppProvider = ({ children }) => {
   const login = (userData, token) => {
     const normalizedUser = userData ? {
       ...userData,
-      name: userData.full_name || userData.name || (userData.email ? userData.email.split('@')[0] : 'Logged In User')
+      name: userData.full_name || userData.name || (userData.email ? userData.email.split('@')[0] : 'Logged In User'),
+      full_name: userData.full_name || userData.name || (userData.email ? userData.email.split('@')[0] : 'Logged In User')
     } : null;
 
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(normalizedUser));
+    if (token) {
+      setAuthToken(token);
+    }
+
     if (typeof window !== 'undefined') {
+      if (token) localStorage.setItem('token', token);
+      if (normalizedUser) localStorage.setItem('user', JSON.stringify(normalizedUser));
       localStorage.removeItem('clm_custom_users');
       localStorage.removeItem('clm_custom_departments');
     }
@@ -284,7 +280,13 @@ export const AppProvider = ({ children }) => {
     setError(null);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      // Ignore network errors on logout
+    }
+    setAuthToken(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
       localStorage.removeItem('user');

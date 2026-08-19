@@ -61,10 +61,10 @@ app.include_router(contracts.router, prefix="/api/v1/admin/contracts", tags=["co
 app.include_router(contracts.router, prefix="/api/admin/contracts", tags=["contracts"])
 app.include_router(contracts.router, prefix="/admin/contracts", tags=["contracts"])
 
-app.include_router(users.router, prefix="/api/v1/admin/users", tags=["users"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])
 
-app.include_router(departments.router, prefix="/api/v1/admin/departments", tags=["departments"])
 app.include_router(departments.router, prefix="/api/v1/departments", tags=["departments"])
+app.include_router(departments.router, prefix="/api/departments", tags=["departments"])
 
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])

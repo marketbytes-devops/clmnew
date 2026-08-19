@@ -92,7 +92,7 @@ class PasswordReset(BaseModel):
 class UserOut(UserBase):
     id: int
     last_login: Optional[datetime] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     role: Optional[str] = "Requester"
     department: Optional[DepartmentOut] = None

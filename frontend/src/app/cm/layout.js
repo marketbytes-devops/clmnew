@@ -10,7 +10,7 @@ export default function CMLayout({ children }) {
   const { isSidebarOpen } = useAppContext();
 
   return (
-    <ProtectedRoute allowedRoles={['contract_manager', 'cm', 'manager']}>
+    <ProtectedRoute allowedRoles={['admin', 'contract_manager', 'contract manager', 'cm', 'manager']}>
       <div className="flex h-screen bg-[#f8faf8] overflow-hidden font-sans text-slate-900">
         <Sidebar />
         <div className={`flex-1 flex flex-col transition-all duration-300 overflow-hidden ${

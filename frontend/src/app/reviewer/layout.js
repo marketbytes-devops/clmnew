@@ -7,7 +7,7 @@ import ProtectedRoute from '../../components/auth/ProtectedRoute';
 
 export default function ReviewerLayout({ children }) {
   return (
-    <ProtectedRoute allowedRoles={['reviewer', 'legal']}>
+    <ProtectedRoute allowedRoles={['admin', 'reviewer', 'legal', 'department lead', 'lead']}>
       <div className="flex h-screen bg-[#f1f6f0] overflow-hidden font-sans text-gray-900">
         <Suspense fallback={<div className="w-72 bg-white border-r border-[#cbdcbe] h-screen shrink-0" />}>
           <ReviewerSidebar />
