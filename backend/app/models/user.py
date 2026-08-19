@@ -14,7 +14,7 @@ class LoginHistory(Base):
     login_time = Column(DateTime, default=datetime.utcnow)
     status = Column(String(50), nullable=False) # Success, Failed
     
-    user = relationship("app.core.models.User", back_populates="login_history")
+    user = relationship("User", back_populates="login_history")
 
 class ContractManager(Base):
     __tablename__ = "contract_managers"

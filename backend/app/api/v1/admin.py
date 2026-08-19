@@ -1,9 +1,10 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.database import get_db
-from app.models.user import User, Role
+from app.models.user import User, Role, Department
 from app.schemas.user import UserCreate, UserOut, RoleCreate, RoleOut, RoleUpdate
 from app.core.security import get_password_hash
 from app.core.dependencies import RoleChecker
@@ -24,8 +25,12 @@ def read_all_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
     return users
 
 @router.post("/users", response_model=UserOut)
-def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_tenant_user)):
-    from sqlalchemy import func
+def create_user(
+    user: UserCreate, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_tenant_user)
+):
     clean_email = user.email.strip().lower() if user.email else ""
     if not clean_email:
         raise HTTPException(status_code=400, detail="Email address is required")
@@ -51,9 +56,16 @@ def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: U
         reset_token=reset_token,
         reset_token_expires=reset_token_expires
     )
+
+    if hasattr(user, 'department_id') and user.department_id:
+        db_user.department_id = user.department_id
         
     if user.role_id:
         role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            db_user.roles.append(role)
+    elif hasattr(user, 'role') and user.role:
+        role = db.query(Role).filter(Role.org_id == target_org_id, Role.name.ilike(user.role)).first()
         if role:
             db_user.roles.append(role)
         
@@ -62,7 +74,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: U
     db.refresh(db_user)
     
     invite_link = f"http://localhost:3000/set-password?token={reset_token}"
-    send_invite_email(db_user.email, invite_link)
+    background_tasks.add_task(send_invite_email, db_user.email, invite_link)
     
     return db_user
 

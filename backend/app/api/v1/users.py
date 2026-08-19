@@ -51,25 +51,35 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         password_hash=hashed_password,
         full_name=user.full_name,
-        role_id=user.role_id,
         department_id=user.department_id,
         is_active=user.is_active,
         reset_token=reset_token,
         reset_token_expires=reset_token_expires
     )
-    # Note: org_id might be needed if it's required by the model. 
-    # If the endpoint fails with missing org_id, it will need to be provided.
     if hasattr(user, 'org_id') and user.org_id:
         new_user.org_id = user.org_id
-    elif hasattr(User, 'org_id') and not new_user.org_id:
+    elif hasattr(User, 'org_id') and not getattr(new_user, 'org_id', None):
         new_user.org_id = 1 # Fallback for now if missing
+
+    # Assign role if provided
+    if user.role_id:
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            new_user.roles.append(role)
+    elif hasattr(user, 'role') and user.role:
+        role = db.query(Role).filter(Role.name.ilike(user.role)).first()
+        if role:
+            new_user.roles.append(role)
         
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     
-    invite_link = f"http://localhost:3000/set-password?token={reset_token}"
-    send_invite_email(new_user.email, invite_link)
+    try:
+        invite_link = f"http://localhost:3000/set-password?token={reset_token}"
+        send_invite_email(new_user.email, invite_link)
+    except Exception as e:
+        print(f"Notice: Failed to dispatch invite email to {new_user.email}: {e}")
     
     return new_user
 

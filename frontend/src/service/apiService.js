@@ -1,13 +1,18 @@
 import { get, post, put, del } from './apiMethods';
+import api from '../api/api';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1` : "/api/v1";
 
-// Helper fetch with timeout for extra reliability
-const fetchWithTimeout = async (url, options = {}, timeoutMs = 5000) => {
+// Helper fetch with timeout and credentials for extra reliability
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetch(url, { 
+      credentials: 'include',
+      ...options, 
+      signal: controller.signal 
+    });
     clearTimeout(id);
     return response;
   } catch (err) {
@@ -160,11 +165,10 @@ export const APIService = {
   },
 
   // --- ADMIN ---
-  getAllUsers: async (token) => {
+  getAllUsers: async () => {
     try {
-      const res = await fetchWithTimeout(`${BASE_URL}/admin/users`);
-      if (!res.ok) return [];
-      return await res.json();
+      const res = await api.get('/api/v1/admin/users');
+      return res.data || [];
     } catch (err) {
       console.warn("Could not reach backend users service:", err.message);
       return [];
@@ -182,103 +186,68 @@ export const APIService = {
       department_id: userData.department_id || null
     };
 
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const detail = errorData.detail || 'Failed to create user';
-      const msg = typeof detail === 'string' ? detail : JSON.stringify(detail);
-      throw new Error(msg);
-    }
-    return res.json();
+    const res = await api.post('/api/v1/admin/users', payload);
+    return res.data;
   },
 
   updateUser: async (id, userData) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/users/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData)
-    });
-    if (!res.ok) throw new Error('Failed to update user');
-    return res.json();
+    const res = await api.put(`/api/v1/admin/users/${id}`, userData);
+    return res.data;
   },
 
   verifyToken: async (token) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/auth/verify-token/${token}`);
-    if (!res.ok) throw new Error('Invalid or expired token');
-    return res.json();
+    const res = await api.get(`/auth/verify-token/${token}`);
+    return res.data;
   },
 
   setPassword: async (token, newPassword) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/auth/set-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, new_password: newPassword })
-    });
-    if (!res.ok) throw new Error('Failed to set password');
-    return res.json();
+    const res = await api.post('/auth/set-password', { token, new_password: newPassword });
+    return res.data;
   },
 
   deleteUser: async (id) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/users/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error('Failed to delete user');
-    return res.json();
+    const res = await api.delete(`/api/v1/admin/users/${id}`);
+    return res.data;
   },
 
   getDepartments: async () => {
-    const res = await fetchWithTimeout(`${BASE_URL}/departments`);
-    if (!res.ok) throw new Error('Failed to fetch departments');
-    return res.json();
+    try {
+      const res = await api.get('/api/v1/admin/departments');
+      return res.data || [];
+    } catch (err) {
+      console.warn("Could not fetch departments:", err.message);
+      return [];
+    }
   },
 
   createDepartment: async (deptData) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/departments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(deptData)
-    });
-    if (!res.ok) throw new Error('Failed to create department');
-    return res.json();
+    const res = await api.post('/api/v1/admin/departments', deptData);
+    return res.data;
   },
 
-  getAllRoles: async (token) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/roles`);
-    if (!res.ok) throw new Error('Failed to fetch roles');
-    return res.json();
+  getAllRoles: async () => {
+    try {
+      const res = await api.get('/api/v1/admin/roles');
+      return res.data || [];
+    } catch (err) {
+      console.warn("Could not fetch roles:", err.message);
+      return [];
+    }
   },
 
   createRole: async (roleData) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/roles`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(roleData)
-    });
-    if (!res.ok) throw new Error('Failed to create role');
-    return res.json();
+    const res = await api.post('/api/v1/admin/roles', roleData);
+    return res.data;
   },
 
   updateRole: async (id, roleData) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/roles/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(roleData)
-    });
-    if (!res.ok) throw new Error('Failed to update role');
-    return res.json();
+    const res = await api.put(`/api/v1/admin/roles/${id}`, roleData);
+    return res.data;
   },
 
   deleteRole: async (id) => {
-    const res = await fetchWithTimeout(`${BASE_URL}/admin/roles/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error('Failed to delete role');
-    return res.json();
+    const res = await api.delete(`/api/v1/admin/roles/${id}`);
+    return res.data;
   },
 
   // --- CONTRACTS ---

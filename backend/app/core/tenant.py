@@ -1,5 +1,6 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.models import User
@@ -7,7 +8,12 @@ from app.auth.utils import decode_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
-def get_current_tenant_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_tenant_user(
+    request: Request,
+    token_header: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    token = request.cookies.get("access_token") or token_header
     if not token:
         return None
 
@@ -20,7 +26,11 @@ def get_current_tenant_user(token: str = Depends(oauth2_scheme), db: Session = D
         return None
 
     try:
-        user = db.query(User).filter(User.id == int(user_id)).first()
+        if str(user_id).isdigit():
+            user = db.query(User).filter(User.id == int(user_id)).first()
+        else:
+            from sqlalchemy import func
+            user = db.query(User).filter(func.lower(User.email) == str(user_id).lower()).first()
         return user
     except Exception:
         return None
