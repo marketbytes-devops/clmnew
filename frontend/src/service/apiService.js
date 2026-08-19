@@ -207,6 +207,22 @@ export const APIService = {
     return res.json();
   },
 
+  verifyToken: async (token) => {
+    const res = await fetchWithTimeout(`${BASE_URL}/auth/verify-token/${token}`);
+    if (!res.ok) throw new Error('Invalid or expired token');
+    return res.json();
+  },
+
+  setPassword: async (token, newPassword) => {
+    const res = await fetchWithTimeout(`${BASE_URL}/auth/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword })
+    });
+    if (!res.ok) throw new Error('Failed to set password');
+    return res.json();
+  },
+
   deleteUser: async (id) => {
     const res = await fetchWithTimeout(`${BASE_URL}/admin/users/${id}`, {
       method: 'DELETE'
@@ -541,6 +557,15 @@ export const APIService = {
 
   resetClientDemo: async () => {
     return await post('/api/client/reset-demo');
+  },
+
+  getContractManagerDashboard: async () => {
+    try {
+      return await get('/api/v1/cm/dashboard');
+    } catch (err) {
+      console.warn("Could not reach CM dashboard endpoint:", err.message);
+      return null;
+    }
   }
 };
 

@@ -165,7 +165,7 @@ class ContractRequestOut(ContractRequestBase):
     id: int
     tracking_id: Optional[str] = None
     status: str
-    requester_id: int
+    requester_id: Optional[int] = None
     assigned_to_id: Optional[int] = None
     contract_id: Optional[int] = None
     created_at: datetime

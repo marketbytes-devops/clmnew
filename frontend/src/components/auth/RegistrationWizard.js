@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { initiateRegistration, verifyRegistration } from '../../api/auth';
 import { useAppContext } from '../../context/appContext';
+import { getRoleRedirectPath } from '../../utils/roleUtils';
 
 export default function RegistrationWizard() {
   const router = useRouter();
@@ -29,6 +30,18 @@ export default function RegistrationWizard() {
     e.preventDefault();
     setError('');
     
+    const emailTrimmed = formData.email.trim().toLowerCase();
+    const orgTrimmed = formData.orgName.trim();
+    const fullNameTrimmed = formData.fullName.trim();
+
+    if (!emailTrimmed) {
+      return setError("Email address is required");
+    }
+
+    if (!orgTrimmed) {
+      return setError("Organization name is required");
+    }
+    
     if (formData.password !== formData.confirmPassword) {
       return setError("Passwords do not match");
     }
@@ -40,10 +53,10 @@ export default function RegistrationWizard() {
     setLoading(true);
     try {
       await initiateRegistration({
-        full_name: formData.fullName,
-        email: formData.email,
+        full_name: fullNameTrimmed,
+        email: emailTrimmed,
         password: formData.password,
-        org_name: formData.orgName
+        org_name: orgTrimmed
       });
       setStep(2);
     } catch (err) {
@@ -72,7 +85,8 @@ export default function RegistrationWizard() {
       }));
       
       login(loginData.user, loginData.access_token);
-      router.push('/');
+      const redirectPath = getRoleRedirectPath(loginData.user);
+      router.push(redirectPath);
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid OTP');
     } finally {

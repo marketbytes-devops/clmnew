@@ -8,6 +8,8 @@ from app.models.contract import Contract, ContractVersion, ContractAttachment, C
 from app.schemas.contract import ContractCreate, ContractUpdate, ContractOut, ContractDetailOut
 from app.core.dependencies import RoleChecker
 
+from app.core.tenant import get_current_tenant_user, scope_query
+
 router = APIRouter()
 
 # Temporarily disabling auth for dev testing
@@ -20,9 +22,10 @@ def list_contracts(
     search: Optional[str] = None,
     status: Optional[str] = None,
     owner_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_tenant_user)
 ):
-    query = db.query(Contract)
+    query = scope_query(db.query(Contract), Contract, current_user)
     
     # Advanced Filters
     if search:
@@ -46,8 +49,11 @@ def get_contract(contract_id: int, db: Session = Depends(get_db)):
     return contract
 
 @router.post("/", response_model=ContractOut)
-def create_contract(contract: ContractCreate, db: Session = Depends(get_db)):
-    db_contract = Contract(**contract.model_dump())
+def create_contract(contract: ContractCreate, db: Session = Depends(get_db), current_user = Depends(get_current_tenant_user)):
+    target_org_id = current_user.org_id if current_user and current_user.org_id else 1
+    contract_data = contract.model_dump()
+    contract_data["org_id"] = target_org_id
+    db_contract = Contract(**contract_data)
     db.add(db_contract)
     db.commit()
     db.refresh(db_contract)

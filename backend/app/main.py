@@ -3,16 +3,35 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from contextlib import asynccontextmanager
+import logging
 
 from app import database
 from app.models import user, contract, request
-from app.api.v1 import auth, admin, contracts, users, departments, ai, analytics, repository, requests, client, dependencies, cm
+from app.api.v1 import admin, contracts, users, departments, ai, analytics, repository, requests, client, dependencies, cm
+from app.auth.router import router as auth_router
 from app.api.v1.portal import router as portal_router
+
+logger = logging.getLogger("uvicorn.error")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Attempting to connect to the database...")
+    try:
+        from app.database import engine
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        logger.info("✅ Database connection established successfully!")
+    except Exception as e:
+        logger.error(f"❌ Failed to connect to the database: {e}")
+    yield
+    logger.info("Application shutdown complete.")
 
 app = FastAPI(
     title="CLM Backend API",
     description="Contract Lifecycle Management Platform API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Enable CORS for Next.js frontend
@@ -31,13 +50,16 @@ app.add_middleware(
 )
 
 # Include Routers with both /api/v1 and /api prefixes to support both Requester and Admin Portals
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(auth_router, tags=["auth"])  # Root level to handle /auth/... directly from frontend
+app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+app.include_router(auth_router, prefix="/api", tags=["auth"])
 
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 app.include_router(contracts.router, prefix="/api/v1/admin/contracts", tags=["contracts"])
+app.include_router(contracts.router, prefix="/api/admin/contracts", tags=["contracts"])
+app.include_router(contracts.router, prefix="/admin/contracts", tags=["contracts"])
 
 app.include_router(users.router, prefix="/api/v1/admin/users", tags=["users"])
 

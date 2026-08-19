@@ -17,9 +17,13 @@ class MessageResponse(BaseModel):
     message: str
 
 class AdminUserCreate(UserBase):
-    password: str
+    password: Optional[str] = None
     org_id: int
     role_id: Optional[int] = None
+
+class SetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -35,7 +39,7 @@ class RoleResponse(BaseModel):
 class UserResponse(UserBase):
     id: int
     org_id: int
-    roles: List[RoleResponse] = []
+    role: Optional[str] = "Requester"
 
     class Config:
         from_attributes = True

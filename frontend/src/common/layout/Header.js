@@ -42,17 +42,17 @@ export default function Header() {
   }, []);
   
   const getPageTitle = () => {
-    if (pathname.includes('/admin/cm-dashboard')) return 'Contract Manager Command Center';
     if (pathname.includes('/dependency/tasks')) return 'My Dependency Tasks';
     if (pathname.includes('/dependency/history')) return 'Completed Tasks History';
     if (pathname.includes('/dependency/')) return 'Task Portal Brief';
     if (pathname === '/dependency') return 'Dashboard';
-    if (pathname.includes('/admin/requests')) return 'Requests / Intake';
-    if (pathname.includes('/admin/contracts')) return 'Contracts';
-    if (pathname.includes('/admin/drafting')) return 'Drafting';
-    if (pathname.includes('/admin/review')) return 'Approvals & Review';
-    if (pathname.includes('/admin/negotiation')) return 'Negotiation';
-    if (pathname.includes('/admin/repository')) return 'Repository';
+    if (pathname.includes('/cm/contracts') || pathname.includes('/admin/contracts')) return 'Contracts';
+    if (pathname.includes('/cm/requests') || pathname.includes('/admin/requests')) return 'Requests / Intake';
+    if (pathname.includes('/cm/review') || pathname.includes('/admin/review')) return 'Approvals & Review';
+    if (pathname.includes('/cm/drafting') || pathname.includes('/admin/drafting')) return 'Drafting';
+    if (pathname.includes('/cm/negotiation') || pathname.includes('/admin/negotiation')) return 'Negotiation';
+    if (pathname.includes('/cm/repository') || pathname.includes('/admin/repository')) return 'Repository';
+    if (pathname === '/cm') return 'Contracts';
     if (pathname.includes('/requestor/requests')) return 'My Requests';
     return 'Dashboard';
   };
@@ -122,8 +122,10 @@ export default function Header() {
             title="Notifications"
             className="w-10 h-10 bg-white border border-slate-200/90 hover:bg-slate-50 rounded-2xl flex items-center justify-center transition-all relative cursor-pointer shadow-2xs"
           >
-            <Bell className="w-5 h-5 text-emerald-800" />
-            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white"></span>
+            <Bell className="w-5 h-5 text-emerald-700" />
+            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-emerald-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
+              2
+            </span>
           </button>
 
           {/* Notifications Dropdown Popover */}
@@ -161,19 +163,33 @@ export default function Header() {
             </div>
           )}
         </div>
+
+        {/* Quick Logout Button */}
+        <button
+          onClick={handleLogout}
+          title="Sign Out"
+          className="w-10 h-10 bg-white border border-slate-200/90 hover:bg-slate-50 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-2xs text-slate-600 hover:text-rose-600"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
         
         {/* User Pill Button & Dropdown Popover */}
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-3 px-3.5 py-1.5 bg-[#f4f9f4] hover:bg-[#e6f3e6] border border-[#d2ebd2] rounded-2xl transition-all shadow-2xs cursor-pointer"
+            className="flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition-all shadow-2xs cursor-pointer"
           >
-            <div className="w-8 h-8 bg-[#3d5e37] text-white rounded-xl flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
-              {userInitial}
+            <div className="w-8 h-8 bg-[#15803d] text-white rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+              {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'JS'}
             </div>
-            <span className="font-bold text-slate-900 text-xs sm:text-sm tracking-tight">
-              {user?.name || 'John Sales'}
-            </span>
+            <div className="text-left hidden sm:block">
+              <span className="font-bold text-slate-900 text-xs tracking-tight block leading-tight">
+                {user?.name || 'John Sales'}
+              </span>
+              <span className="text-[10px] font-medium text-slate-400 block leading-tight mt-0.5">
+                {user?.title || user?.role || 'Account Executive'}
+              </span>
+            </div>
           </button>
 
           {/* Profile Dropdown Popover */}

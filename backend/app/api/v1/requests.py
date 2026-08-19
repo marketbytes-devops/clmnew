@@ -17,6 +17,8 @@ from app.schemas.request import (
     RequestInlineCommentPayload
 )
 
+from app.core.tenant import get_current_tenant_user, scope_query
+
 router = APIRouter()
 
 # Temporary mock for currently logged-in user
@@ -32,9 +34,10 @@ def list_requests(
     requester_id: Optional[int] = None,
     assigned_to_id: Optional[int] = None,
     search: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_tenant_user)
 ):
-    query = db.query(ContractRequest)
+    query = scope_query(db.query(ContractRequest), ContractRequest, current_user)
 
     if status and status != "All":
         query = query.filter(ContractRequest.status == status)
@@ -62,7 +65,7 @@ def list_requests(
 def create_request(
     request_data: ContractRequestCreate, 
     db: Session = Depends(get_db),
-    current_user_id: int = Depends(get_current_user_mock)
+    current_user = Depends(get_current_tenant_user)
 ):
     req_dict = request_data.model_dump()
     dependencies_data = req_dict.pop("dependencies", [])

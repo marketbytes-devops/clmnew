@@ -61,18 +61,16 @@ export const AppProvider = ({ children }) => {
         }
       }
     }
-    return {
-      id: 101,
-      name: 'John Sales',
-      email: 'john.sales@marketbytes.com',
-      department: 'Sales',
-      role: 'Requester',
-      title: 'Account Executive'
-    };
+    return null;
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem('token') && !!localStorage.getItem('user');
+    }
+    return false;
+  });
 
   // Sidebar Open/Collapse State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -202,9 +200,14 @@ export const AppProvider = ({ children }) => {
         if (token && storedUser) {
           setUser(JSON.parse(storedUser));
           setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.error('Error initializing AppContext:', err);
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setLoading(false);
       }
@@ -218,58 +221,24 @@ export const AppProvider = ({ children }) => {
     initializeApp();
   }, [loadRequestsData, loadAssigneeOptions]);
 
-  const [users, setUsers] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('clm_custom_users');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [];
-  });
+  const [users, setUsers] = useState([]);
 
   const saveUsersLocally = (updatedUsers) => {
     setUsers(updatedUsers);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('clm_custom_users', JSON.stringify(updatedUsers));
-    }
   };
 
   const addUser = (newUser) => {
-    setUsers(prev => {
-      const updated = [newUser, ...prev];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('clm_custom_users', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    setUsers(prev => [newUser, ...prev]);
   };
 
-  const [departments, setDepartments] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('clm_custom_departments');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [];
-  });
+  const [departments, setDepartments] = useState([]);
 
   const saveDepartmentsLocally = (updatedDepts) => {
     setDepartments(updatedDepts);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('clm_custom_departments', JSON.stringify(updatedDepts));
-    }
   };
 
   const addDepartment = (newDept) => {
-    setDepartments(prev => {
-      const updated = [newDept, ...prev];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('clm_custom_departments', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    setDepartments(prev => [newDept, ...prev]);
   };
 
   const [roles, setRoles] = useState([]);
@@ -293,61 +262,39 @@ export const AppProvider = ({ children }) => {
   const login = (userData, token) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('clm_custom_users');
+      localStorage.removeItem('clm_custom_departments');
+    }
     setUser(userData);
     setIsAuthenticated(true);
+    setUsers([]);
+    setDepartments([]);
     setError(null);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('clm_custom_users');
+      localStorage.removeItem('clm_custom_departments');
+    }
     setUser(null);
     setIsAuthenticated(false);
     setUsers([]);
     setRoles([]);
+    setDepartments([]);
   };
 
-  const [contracts, setContracts] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('clm_custom_contracts');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [];
-  });
+  const [contracts, setContracts] = useState([]);
 
-  const saveContractsLocally = (updated) => {
-    setContracts(updated);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('clm_custom_contracts', JSON.stringify(updated));
-    }
-  };
-
-  // Fetch contracts from the backend & merge with local contracts
+  // Fetch contracts from the backend
   const fetchContracts = async () => {
     try {
       const { APIService } = await import('../service/apiService');
-      const backendData = await APIService.getContracts().catch(() => []);
-      
-      let localSaved = [];
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('clm_custom_contracts');
-        if (saved) {
-          try { localSaved = JSON.parse(saved); } catch (e) {}
-        }
-      }
-
-      const combined = [...(Array.isArray(backendData) ? backendData : []), ...localSaved];
-      const map = new Map();
-      combined.forEach(c => {
-        if (c && (c.id || c.title)) {
-          const key = c.id || c.title;
-          if (!map.has(key)) map.set(key, c);
-        }
-      });
-      const result = Array.from(map.values());
-      saveContractsLocally(result);
+      const data = await APIService.getContracts();
+      setContracts(data);
     } catch (err) {
       console.error("Failed to fetch contracts", err);
     }
@@ -355,36 +302,27 @@ export const AppProvider = ({ children }) => {
 
   // Add a new contract
   const addContract = async (contractData) => {
-    let createdItem = null;
     try {
       const { APIService } = await import('../service/apiService');
-      createdItem = await APIService.createContract(contractData);
+      const newContract = await APIService.createContract(contractData);
+      if (newContract) {
+        setContracts(prev => [newContract, ...prev]);
+      }
+      return newContract;
     } catch (err) {
       console.warn("Failed to create contract on backend, creating local draft", err);
-    }
-
-    if (!createdItem || !createdItem.id) {
-      createdItem = {
+      const mockContract = {
         id: Date.now(),
         title: contractData.title || 'Untitled Contract Agreement',
         status: contractData.status || 'Drafting In Progress',
         value: contractData.value || 0,
         ai_summary: contractData.ai_summary || '',
         metadata_data: contractData.metadata_data || {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: new Date().toISOString()
       };
+      setContracts(prev => [mockContract, ...prev]);
+      return mockContract;
     }
-
-    setContracts(prev => {
-      const updated = [createdItem, ...prev.filter(c => c.id !== createdItem.id && c.title !== createdItem.title)];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('clm_custom_contracts', JSON.stringify(updated));
-      }
-      return updated;
-    });
-
-    return createdItem;
   };
 
   const [requests, setRequests] = useState([]);

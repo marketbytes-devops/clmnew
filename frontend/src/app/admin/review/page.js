@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
 import { APIService } from '../../../service/apiService';
-import { useAppContext } from '../../../context/appContext';
 
 const DEMO_REVIEW_CONTRACT = {
   id: 1,
@@ -52,12 +51,12 @@ const DEMO_REVIEW_CONTRACT = {
     {
       id: 'sec-4',
       title: 'Section 4: Commercial Terms & Payment Schedule',
-      text: 'Client agrees to pay a total contract fee of ₹22,000 on a Net-60 payment schedule following milestone acceptance.',
+      text: 'Client agrees to pay a total contract fee of $22,000 USD on a Net-60 payment schedule following milestone acceptance.',
       risk: 'high',
       alert: 'Financial Warning: Payment terms set to Net-60. Company baseline target is Net-30.'
     }
   ],
-  baseline_diff_text: 'Client agrees to pay a total contract fee of ₹22,000 on a Net-30 payment schedule following milestone acceptance.',
+  baseline_diff_text: 'Client agrees to pay a total contract fee of $22,000 USD on a Net-30 payment schedule following milestone acceptance.',
   dependencies: [
     { department: 'UI/UX Design', lead: 'Alex Miller', hours: 45, status: 'Approved' },
     { department: 'Engineering', lead: 'David Chen', hours: 160, status: 'Approved' }
@@ -70,7 +69,6 @@ const DEMO_REVIEW_CONTRACT = {
 };
 
 export default function ApproverWorkspaceStudioPage() {
-  const { contracts: contextContracts, contractRequests: contextRequests } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [reviewContracts, setReviewContracts] = useState([]);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -99,6 +97,7 @@ export default function ApproverWorkspaceStudioPage() {
   const [authorizationChecked, setAuthorizationChecked] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState('');
   const [securityPin, setSecurityPin] = useState('');
+
   const [submittingAction, setSubmittingAction] = useState(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState('');
 
@@ -110,107 +109,84 @@ export default function ApproverWorkspaceStudioPage() {
         APIService.getRequests().catch(() => [])
       ]);
 
-      const allContractsRaw = [
-        ...(Array.isArray(contractsData) ? contractsData : []),
-        ...(Array.isArray(contextContracts) ? contextContracts : [])
-      ];
-
-      const allRequestsRaw = [
-        ...(Array.isArray(requestsData) ? requestsData : []),
-        ...(Array.isArray(contextRequests) ? contextRequests : [])
-      ];
-
-      const contractsMap = new Map();
-      allContractsRaw.forEach(c => {
-        if (c && c.title) {
-          const key = c.id || c.title;
-          if (!contractsMap.has(key)) contractsMap.set(key, c);
-        }
-      });
-      const uniqueContracts = Array.from(contractsMap.values());
-
-      const requestsMap = new Map();
-      allRequestsRaw.forEach(r => {
-        if (r && (r.title || r.requestName)) {
-          const key = r.id || r.title || r.requestName;
-          if (!requestsMap.has(key)) requestsMap.set(key, r);
-        }
-      });
-      const uniqueRequests = Array.from(requestsMap.values());
-
       const formattedContracts = [];
 
-      uniqueContracts.forEach(c => {
-        const meta = c.metadata_data || {};
-        const isDecided = c.status === 'Approved' || c.status === 'Reviewed' || c.status === 'Rejected';
-        const displayStatus = isDecided ? c.status : 'Pending';
-        
-        formattedContracts.push({
-          id: c.id,
-          tracking_id: c.tracking_id || `CTR-2026-${c.id}`,
-          title: c.title,
-          category: c.category || meta.category || 'General Commercial',
-          version_label: isDecided ? 'v1.0-APPROVED' : 'v1.0',
-          entity_name: meta.counterparty || meta.secondPartyName || meta.partyInfo?.secondPartyName || c.entity_name || 'Client / Party',
-          contract_type: c.contract_type || meta.contractType || 'Standard Contract',
-          deal_value: c.value || meta.commercialInfo?.totalValue || 0,
-          requester_name: meta.partyInfo?.firstPartyName || 'Operations Manager',
-          contract_manager: 'Alex Miller',
-          status: displayStatus,
-          isLocked: isDecided,
-          rawMeta: meta,
-          priority: c.priority || 'High',
-          approval_sequence: [
-            { step: 1, role: 'Operations', name: 'Alex Miller', status: 'Approved', timestamp: '2026-08-06 14:30' },
-            { step: 2, role: 'Finance', name: 'Sarah Jenkins', status: displayStatus === 'Pending' ? 'Pending' : 'Approved', timestamp: 'Just now' },
-            { step: 3, role: 'Legal', name: 'Elena Rostova', status: displayStatus === 'Pending' ? 'Queued' : 'Approved', timestamp: 'Just now' }
-          ],
-          clauses: meta.clauses && meta.clauses.length > 0 ? meta.clauses : [
-            { id: 1, category: 'Confidentiality & IP Protection', text: 'All proprietary source code, software architecture, and trade secrets shared under this agreement remain exclusive property.' },
-            { id: 2, category: 'Indemnification & Liability', text: 'Neither party shall be liable for indirect, incidental, or consequential damages arising from execution under this contract.' },
-            { id: 3, category: 'Governing Law & Jurisdiction', text: 'This Agreement shall be governed by and construed under the laws of Delaware, USA.' }
-          ]
-        });
+      (contractsData || []).forEach(c => {
+        if (c.status === 'Review' || c.status === 'Internal Review' || c.status === 'Reviewed' || c.status === 'Approved' || c.status === 'Rejected') {
+          const meta = c.metadata_data || {};
+          const isDecided = c.status === 'Approved' || c.status === 'Reviewed' || c.status === 'Rejected';
+          const displayStatus = (c.status === 'Review' || c.status === 'Internal Review') ? 'Pending' : c.status;
+          
+          formattedContracts.push({
+            id: c.id,
+            tracking_id: `CTR-2026-${c.id}`,
+            title: c.title,
+            category: c.category || meta.category || 'General Commercial',
+            version_label: c.status === 'Approved' || c.status === 'Reviewed' ? 'v1.0-APPROVED' : 'v1.0',
+            entity_name: meta.counterparty || meta.secondPartyName || c.metadata_data?.firstPartyName || 'Client / Party',
+            contract_type: c.contract_type || meta.contractType || 'Standard Contract',
+            deal_value: c.value || 0,
+            requester_name: 'Operations Manager',
+            contract_manager: 'Alex Miller',
+            status: displayStatus,
+            isLocked: isDecided,
+            rawMeta: meta,
+            priority: 'High',
+            approval_sequence: [
+              { step: 1, role: 'Operations', name: 'Alex Miller', status: 'Approved', timestamp: '2026-08-06 14:30' },
+              { step: 2, role: 'Finance', name: 'Sarah Jenkins', status: displayStatus === 'Pending' ? 'Pending' : 'Approved', timestamp: 'Just now' },
+              { step: 3, role: 'Legal', name: 'Elena Rostova', status: displayStatus === 'Pending' ? 'Queued' : 'Approved', timestamp: 'Just now' }
+            ],
+            clauses: meta.clauses && meta.clauses.length > 0 ? meta.clauses : [
+              { id: 1, category: 'Confidentiality & IP Protection', text: 'All proprietary source code, software architecture, and trade secrets shared under this agreement remain exclusive property.' },
+              { id: 2, category: 'Indemnification & Liability', text: 'Neither party shall be liable for indirect, incidental, or consequential damages arising from execution under this contract.' },
+              { id: 3, category: 'Governing Law & Jurisdiction', text: 'This Agreement shall be governed by and construed under the laws of Delaware, USA.' }
+            ]
+          });
+        }
       });
 
-      uniqueRequests.forEach(r => {
-        const displayStatus = (r.status === 'Review' || r.status === 'Internal Review') ? 'Pending' : r.status || 'Pending';
-        formattedContracts.push({
-          id: r.id,
-          tracking_id: r.tracking_id || `REQ-2026-${r.id}`,
-          title: r.title || 'Contract Agreement',
-          version_label: 'v1.0',
-          entity_name: r.entity_name || r.client_name || 'Client / Party',
-          contract_type: r.contract_type || 'Standard Agreement',
-          deal_value: r.final_commercial_pricing || r.deal_value || r.value || 0,
-          requester_name: 'Sales Rep',
-          contract_manager: 'Alex Miller',
-          status: displayStatus,
-          isLocked: displayStatus !== 'Pending',
-          priority: 'High',
-          approval_sequence: [
-            { step: 1, role: 'Operations', name: 'Alex Miller', status: 'Approved', timestamp: '2026-08-06 14:30' },
-            { step: 2, role: 'Finance', name: 'Sarah Jenkins', status: displayStatus === 'Pending' ? 'Pending' : 'Approved', timestamp: null },
-            { step: 3, role: 'Legal', name: 'Elena Rostova', status: displayStatus === 'Pending' ? 'Queued' : 'Approved', timestamp: null }
-          ],
-          clauses: [
-            {
-              id: 'sec-1',
-              title: 'Section 1: Scope of Work & Services',
-              text: r.description || 'Scope of Work & Services agreement.'
-            }
-          ]
-        });
+      (requestsData || []).forEach(r => {
+        if (r.status === 'Review' || r.status === 'Internal Review' || r.status === 'Reviewed' || r.status === 'Approved' || r.status === 'Rejected') {
+          const displayStatus = (r.status === 'Review' || r.status === 'Internal Review') ? 'Pending' : r.status;
+          formattedContracts.push({
+            id: r.id,
+            tracking_id: r.tracking_id || `REQ-2026-${r.id}`,
+            title: r.title || 'Contract Agreement',
+            version_label: 'v1.0',
+            entity_name: r.entity_name || 'Client / Party',
+            contract_type: r.contract_type || 'Standard Agreement',
+            deal_value: r.final_commercial_pricing || r.deal_value || 0,
+            requester_name: 'Sales Rep',
+            contract_manager: 'Alex Miller',
+            status: displayStatus,
+            isLocked: displayStatus !== 'Pending',
+            priority: 'High',
+            approval_sequence: [
+              { step: 1, role: 'Operations', name: 'Alex Miller', status: 'Approved', timestamp: '2026-08-06 14:30' },
+              { step: 2, role: 'Finance', name: 'Sarah Jenkins', status: displayStatus === 'Pending' ? 'Pending' : 'Approved', timestamp: null },
+              { step: 3, role: 'Legal', name: 'Elena Rostova', status: displayStatus === 'Pending' ? 'Queued' : 'Approved', timestamp: null }
+            ],
+            clauses: [
+              {
+                id: 'sec-1',
+                title: 'Section 1: Scope of Work & Services',
+                text: r.description || 'Scope of Work & Services agreement.'
+              }
+            ]
+          });
+        }
       });
 
-      const finalContracts = formattedContracts.length > 0 ? formattedContracts : [DEMO_REVIEW_CONTRACT];
-
-      setReviewContracts(finalContracts);
-      setSelectedContract(finalContracts[0]);
+      setReviewContracts(formattedContracts);
+      if (formattedContracts.length > 0) {
+        setSelectedContract(formattedContracts[0]);
+      } else {
+        setSelectedContract(null);
+      }
     } catch (err) {
       console.error("Failed to load review requests from backend", err);
-      setReviewContracts([DEMO_REVIEW_CONTRACT]);
-      setSelectedContract(DEMO_REVIEW_CONTRACT);
+      setReviewContracts([]);
     } finally {
       setLoading(false);
     }
@@ -218,7 +194,7 @@ export default function ApproverWorkspaceStudioPage() {
 
   useEffect(() => {
     loadContractData();
-  }, [contextContracts, contextRequests]);
+  }, []);
 
   const handleOpenReviewDetail = (c) => {
     setSelectedContract(c);

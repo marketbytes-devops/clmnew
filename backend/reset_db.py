@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from app.database import Base, engine, SessionLocal
 from app.core.security import get_password_hash
 
+import app.core.models
 # Import all models to register them on Base.metadata
 from app.models import (
     User, Role, Department, LoginHistory, ContractManager, DepartmentLead, Notification,
@@ -40,6 +41,13 @@ def reset_and_seed_db():
     
     db = SessionLocal()
     try:
+
+        print("Seeding Organization...")
+        from app.core.models import Organization
+        default_org = Organization(name="System Default Org", subdomain="system", )
+        db.add(default_org)
+        db.commit()
+
         print("Seeding Roles...")
         cm_default_perms = [
           {
@@ -52,35 +60,37 @@ def reset_and_seed_db():
             ]
           }
         ]
-        admin_role = Role(name="Admin", description="Administrator with full access", permissions={"all": True})
-        manager_role = Role(name="Contract_Manager", description="Contract Manager", permissions=cm_default_perms)
-        requester_role = Role(name="Requester", description="Contract Requester")
-        reviewer_role = Role(name="Reviewer", description="Department Reviewer")
+        admin_role = Role(org_id=default_org.id, name="Admin", description="Administrator with full access", permissions_json={"all": True})
+        manager_role = Role(org_id=default_org.id, name="Contract_Manager", description="Contract Manager", permissions_json=cm_default_perms)
+        requester_role = Role(org_id=default_org.id, name="Requester", description="Contract Requester")
+        reviewer_role = Role(org_id=default_org.id, name="Reviewer", description="Department Reviewer")
         db.add_all([admin_role, manager_role, requester_role, reviewer_role])
         db.commit()
         
         print("Seeding Departments...")
-        legal_dept = Department(name="Legal Operations", description="Legal Operations Department")
-        finance_dept = Department(name="Commercial Finance", description="Finance Department")
+        legal_dept = Department(org_id=default_org.id, name="Legal Operations", description="Legal Operations Department")
+        finance_dept = Department(org_id=default_org.id, name="Commercial Finance", description="Finance Department")
         db.add_all([legal_dept, finance_dept])
         db.commit()
         
         print("Seeding Users...")
         admin_user = User(
+            org_id=default_org.id,
             email="admin@clm.com",
-            hashed_password=get_password_hash("admin123"),
+            password_hash=get_password_hash("admin123"),
             full_name="System Administrator",
             is_active=True,
-            role_id=admin_role.id
         )
         john_sales = User(
+            org_id=default_org.id,
             email="john.sales@marketbytes.com",
-            hashed_password=get_password_hash("password123"),
+            password_hash=get_password_hash("password123"),
             full_name="John Sales",
             is_active=True,
-            role_id=requester_role.id,
             department_id=finance_dept.id
         )
+        admin_user.roles.append(admin_role)
+        john_sales.roles.append(requester_role)
         db.add_all([admin_user, john_sales])
         db.commit()
         

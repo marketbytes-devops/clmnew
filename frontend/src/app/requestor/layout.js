@@ -8,14 +8,6 @@ export default function RequestorLayout({ children }) {
   const pathname = usePathname();
   const isCreatePage = pathname === '/requestor/create';
 
-  if (isCreatePage) {
-    return (
-      <div className="min-h-screen bg-[#f8faf8]">
-        {children}
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen bg-[#f8faf8]">
       <RequestorSidebar />
