@@ -16,8 +16,12 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
         return;
       }
 
-      const role = getUserRole(user);
-      const isAllowed = allowedRoles.some(r => role.includes(r.toLowerCase()));
+      const role = getUserRole(user).toLowerCase().replace(/_/g, ' ');
+      const isAdmin = role.includes('admin');
+      const isAllowed = isAdmin || allowedRoles.length === 0 || allowedRoles.some(r => {
+        const normalized = r.toLowerCase().replace(/_/g, ' ');
+        return role.includes(normalized) || normalized.includes(role);
+      });
 
       if (!isAllowed) {
         const allowedPath = getRoleRedirectPath(user);
@@ -41,8 +45,12 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     return null;
   }
 
-  const role = getUserRole(user);
-  const isAllowed = allowedRoles.some(r => role.includes(r.toLowerCase()));
+  const role = getUserRole(user).toLowerCase().replace(/_/g, ' ');
+  const isAdmin = role.includes('admin');
+  const isAllowed = isAdmin || allowedRoles.length === 0 || allowedRoles.some(r => {
+    const normalized = r.toLowerCase().replace(/_/g, ' ');
+    return role.includes(normalized) || normalized.includes(role);
+  });
 
   if (!isAllowed) {
     return null;
