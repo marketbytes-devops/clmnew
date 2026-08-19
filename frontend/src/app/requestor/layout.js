@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import Sidebar from '../../components/common/Sidebar';
+import RequestorSidebar from './RequestorSidebar';
 
 export default function RequestorLayout({ children }) {
   const pathname = usePathname();
@@ -18,7 +18,7 @@ export default function RequestorLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-[#f8faf8]">
-      <Sidebar />
+      <RequestorSidebar />
       <div className="flex-1 ml-72 overflow-x-hidden bg-[#f8faf8]">
         {children}
       </div>
