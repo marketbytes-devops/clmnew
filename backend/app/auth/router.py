@@ -4,6 +4,7 @@ import re
 import random
 import string
 from datetime import datetime, timedelta
+import secrets
 
 from sqlalchemy.orm import Session
 from ..database import get_db
@@ -18,12 +19,35 @@ router = APIRouter(
 
 @router.post("/register/initiate", response_model=schemas.MessageResponse)
 def initiate_registration(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists
-    db_user = db.query(User).filter(User.email == user.email).first()
+    from sqlalchemy import func
+    clean_email = user.email.strip().lower() if user.email else ""
+    if not clean_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address is required"
+        )
+        
+    clean_org = user.org_name.strip() if user.org_name else ""
+    if not clean_org:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Organization name is required"
+        )
+
+    # Check if user with this email already exists
+    db_user = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="Email is already registered. Please log in instead."
+        )
+        
+    # Check if organization with same name already exists
+    db_org = db.query(Organization).filter(func.lower(Organization.name) == clean_org.lower()).first()
+    if db_org:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An organization with this name already exists. Please choose a unique organization name."
         )
     
     # Generate 6-digit OTP
@@ -33,22 +57,22 @@ def initiate_registration(user: schemas.UserCreate, db: Session = Depends(get_db
     hashed_password = utils.get_password_hash(user.password)
     
     # Check if a pending registration already exists for this email
-    pending = db.query(PendingRegistration).filter(PendingRegistration.email == user.email).first()
+    pending = db.query(PendingRegistration).filter(func.lower(PendingRegistration.email) == clean_email).first()
     
     expires_at = datetime.utcnow() + timedelta(minutes=10)
     
     if pending:
         pending.password_hash = hashed_password
-        pending.full_name = user.full_name
-        pending.org_name = user.org_name
+        pending.full_name = user.full_name.strip() if user.full_name else ""
+        pending.org_name = clean_org
         pending.otp_code = otp_code
         pending.expires_at = expires_at
     else:
         pending = PendingRegistration(
-            email=user.email,
+            email=clean_email,
             password_hash=hashed_password,
-            full_name=user.full_name,
-            org_name=user.org_name,
+            full_name=user.full_name.strip() if user.full_name else "",
+            org_name=clean_org,
             otp_code=otp_code,
             expires_at=expires_at
         )
@@ -57,22 +81,28 @@ def initiate_registration(user: schemas.UserCreate, db: Session = Depends(get_db
     db.commit()
     
     # Send email
-    utils.send_otp_email(user.email, otp_code)
+    utils.send_otp_email(clean_email, otp_code)
     
     return {"message": "OTP sent to your email. Please verify to complete registration."}
 
 @router.post("/register/verify", response_model=schemas.UserResponse)
 def verify_registration(otp_data: schemas.OTPVerify, db: Session = Depends(get_db)):
-    pending = db.query(PendingRegistration).filter(PendingRegistration.email == otp_data.email).first()
+    from sqlalchemy import func
+    clean_email = otp_data.email.strip().lower() if otp_data.email else ""
+    pending = db.query(PendingRegistration).filter(func.lower(PendingRegistration.email) == clean_email).first()
     
     if not pending:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending registration found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending registration found for this email")
         
-    if pending.otp_code != otp_data.otp_code:
+    if pending.otp_code != otp_data.otp_code.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP code")
         
     if pending.expires_at < datetime.utcnow():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP code has expired")
+
+    # Final uniqueness check before creating user and org
+    if db.query(User).filter(func.lower(User.email) == clean_email).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already registered")
         
     # Create Organization
     subdomain = re.sub(r'[^a-zA-Z0-9]', '', pending.org_name.lower())
@@ -105,7 +135,7 @@ def verify_registration(otp_data: schemas.OTPVerify, db: Session = Depends(get_d
     # Create new user
     new_user = User(
         org_id=new_org.id,
-        email=pending.email,
+        email=clean_email,
         password_hash=pending.password_hash,
         full_name=pending.full_name
     )
@@ -122,9 +152,12 @@ def verify_registration(otp_data: schemas.OTPVerify, db: Session = Depends(get_d
 
 @router.post("/login", response_model=schemas.LoginResponse)
 def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get_db)):
-    # Find user by email
-    db_user = db.query(User).filter(User.email == user.email).first()
+    # Find user by email (case-insensitive and trimmed)
+    from sqlalchemy import func
+    clean_email = user.email.strip().lower() if user.email else ""
+    db_user = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if not db_user:
+        print(f"[AUTH LOGIN DEBUG] User not found: '{user.email}' (cleaned: '{clean_email}')")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -132,7 +165,9 @@ def login(user: schemas.UserLogin, response: Response, db: Session = Depends(get
         )
     
     # Verify password
-    if not utils.verify_password(user.password, db_user.password_hash):
+    plain_pw = user.password if user.password is not None else ""
+    if not utils.verify_password(plain_pw, db_user.password_hash) and not utils.verify_password(plain_pw.strip(), db_user.password_hash):
+        print(f"[AUTH LOGIN DEBUG] Password mismatch for email: '{clean_email}'")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -181,27 +216,73 @@ def create_user_as_admin(
     db: Session = Depends(get_db)
 ):
     # Check if user already exists
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     
-    # Hash password
-    hashed_password = utils.get_password_hash(user.password)
+    # Use provided password or generate a dummy one
+    password_to_hash = user.password if user.password else secrets.token_urlsafe(16)
+    hashed_password = utils.get_password_hash(password_to_hash)
+    
+    # Generate reset token for invitation
+    reset_token = secrets.token_urlsafe(32)
+    reset_token_expires = datetime.utcnow() + timedelta(hours=24)
     
     # Create new user with specific role
-    new_user = models.User(
+    new_user = User(
         email=user.email,
-        password=hashed_password,
-        role=user.role
+        full_name=user.full_name,
+        password_hash=hashed_password,
+        org_id=user.org_id,
+        reset_token=reset_token,
+        reset_token_expires=reset_token_expires
     )
+    
+    if user.role_id:
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            new_user.roles.append(role)
+            
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     
+    # Send invitation email
+    invite_link = f"http://localhost:3000/set-password?token={reset_token}"
+    utils.send_invite_email(new_user.email, invite_link)
+    
     return new_user
+
+@router.get("/verify-token/{token}")
+def verify_token(token: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.reset_token == token).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token")
+    if user.reset_token_expires:
+        expires = user.reset_token_expires.replace(tzinfo=None) if hasattr(user.reset_token_expires, 'tzinfo') and user.reset_token_expires.tzinfo else user.reset_token_expires
+        if expires < datetime.utcnow():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token has expired")
+    return {"message": "Token is valid", "email": user.email}
+
+@router.post("/set-password", response_model=schemas.MessageResponse)
+def set_password(data: schemas.SetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.reset_token == data.token).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token")
+    if user.reset_token_expires:
+        expires = user.reset_token_expires.replace(tzinfo=None) if hasattr(user.reset_token_expires, 'tzinfo') and user.reset_token_expires.tzinfo else user.reset_token_expires
+        if expires < datetime.utcnow():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token has expired")
+        
+    user.password_hash = utils.get_password_hash(data.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    
+    db.commit()
+    return {"message": "Password updated successfully"}
 @router.post("/refresh", response_model=schemas.TokenRefreshResponse)
 def refresh_token(
     response: Response,

@@ -61,18 +61,16 @@ export const AppProvider = ({ children }) => {
         }
       }
     }
-    return {
-      id: 101,
-      name: 'John Sales',
-      email: 'john.sales@marketbytes.com',
-      department: 'Sales',
-      role: 'Requester',
-      title: 'Account Executive'
-    };
+    return null;
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem('token') && !!localStorage.getItem('user');
+    }
+    return false;
+  });
 
   // Sidebar Open/Collapse State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -202,9 +200,14 @@ export const AppProvider = ({ children }) => {
         if (token && storedUser) {
           setUser(JSON.parse(storedUser));
           setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.error('Error initializing AppContext:', err);
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setLoading(false);
       }
@@ -218,129 +221,24 @@ export const AppProvider = ({ children }) => {
     initializeApp();
   }, [loadRequestsData, loadAssigneeOptions]);
 
-  const [users, setUsers] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('clm_custom_users');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [];
-  });
+  const [users, setUsers] = useState([]);
 
   const saveUsersLocally = (updatedUsers) => {
     setUsers(updatedUsers);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('clm_custom_users', JSON.stringify(updatedUsers));
-    }
   };
 
   const addUser = (newUser) => {
-    setUsers(prev => {
-      const updated = [newUser, ...prev];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('clm_custom_users', JSON.stringify(updated));
-      }
-      return updated;
-    });
-
-    // Automatically sync user details into matching department if department exists (or create department)
-    let rawDept = newUser.department;
-    let deptName = '';
-    if (typeof rawDept === 'object' && rawDept !== null) {
-      deptName = rawDept.name || rawDept.title || rawDept.code || '';
-    } else if (typeof rawDept === 'string') {
-      deptName = rawDept;
-    }
-    deptName = (deptName || '').trim();
-
-    if (deptName) {
-      setDepartments(prevDepts => {
-        let deptsList = Array.isArray(prevDepts) ? [...prevDepts] : [];
-        if (typeof window !== 'undefined' && deptsList.length === 0) {
-          const stored = localStorage.getItem('clm_custom_departments');
-          if (stored) {
-            try { deptsList = JSON.parse(stored); } catch (e) {}
-          }
-        }
-
-        const targetLower = deptName.toLowerCase();
-        let deptIndex = deptsList.findIndex(d => {
-          const dName = (d.name || '').trim().toLowerCase();
-          const dCode = (d.code || '').trim().toLowerCase();
-          return dName === targetLower || dCode === targetLower || (dName && dName.includes(targetLower)) || (targetLower && targetLower.includes(dName));
-        });
-
-        const memberObj = {
-          id: newUser.id || Date.now(),
-          name: newUser.full_name || newUser.name || newUser.email,
-          email: newUser.email,
-          role: typeof newUser.role === 'object' && newUser.role !== null ? newUser.role.name : (newUser.role || 'Member'),
-          designation: newUser.designation || newUser.title || 'Staff Member'
-        };
-
-        if (deptIndex !== -1) {
-          const targetDept = deptsList[deptIndex];
-          const existingMembers = Array.isArray(targetDept.members) ? targetDept.members : [];
-          const userAlreadyMember = existingMembers.some(m => String(m.email || m.id).toLowerCase() === String(newUser.email || newUser.id).toLowerCase());
-          
-          if (!userAlreadyMember) {
-            const updatedMembers = [...existingMembers, memberObj];
-            const updatedDept = {
-              ...targetDept,
-              members: updatedMembers,
-              membersCount: updatedMembers.length
-            };
-            deptsList[deptIndex] = updatedDept;
-          }
-        } else {
-          // If department does not exist in array yet, create department object so user is not lost!
-          const newDeptObj = {
-            id: Date.now(),
-            name: deptName,
-            code: deptName.slice(0, 6).toUpperCase(),
-            description: `${deptName} Department`,
-            head: 'Unassigned',
-            status: 'Active',
-            members: [memberObj],
-            membersCount: 1
-          };
-          deptsList.push(newDeptObj);
-        }
-
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('clm_custom_departments', JSON.stringify(deptsList));
-        }
-        return deptsList;
-      });
-    }
+    setUsers(prev => [newUser, ...prev]);
   };
 
-  const [departments, setDepartments] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('clm_custom_departments');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [];
-  });
+  const [departments, setDepartments] = useState([]);
 
   const saveDepartmentsLocally = (updatedDepts) => {
     setDepartments(updatedDepts);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('clm_custom_departments', JSON.stringify(updatedDepts));
-    }
   };
 
   const addDepartment = (newDept) => {
-    setDepartments(prev => {
-      const updated = [newDept, ...prev];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('clm_custom_departments', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    setDepartments(prev => [newDept, ...prev]);
   };
 
   const [roles, setRoles] = useState([]);
@@ -364,18 +262,29 @@ export const AppProvider = ({ children }) => {
   const login = (userData, token) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('clm_custom_users');
+      localStorage.removeItem('clm_custom_departments');
+    }
     setUser(userData);
     setIsAuthenticated(true);
+    setUsers([]);
+    setDepartments([]);
     setError(null);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('clm_custom_users');
+      localStorage.removeItem('clm_custom_departments');
+    }
     setUser(null);
     setIsAuthenticated(false);
     setUsers([]);
     setRoles([]);
+    setDepartments([]);
   };
 
   const [contracts, setContracts] = useState([]);
