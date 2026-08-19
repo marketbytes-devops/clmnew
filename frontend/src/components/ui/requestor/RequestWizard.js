@@ -34,8 +34,8 @@ export default function RequestWizard() {
 
   // Wizard Form State
   const [formData, setFormData] = useState({
-    requesterName: user?.name || 'John Sales',
-    requesterDepartment: user?.department || 'Sales',
+    requesterName: user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : ''),
+    requesterDepartment: typeof user?.department === 'object' ? user.department?.name : (user?.department || 'Sales'),
     businessUnit: user?.businessUnit || 'Software Services',
     entityType: 'Client / Customer',
     clientName: '',
@@ -66,6 +66,18 @@ export default function RequestWizard() {
     dependencyMatrix: []
   });
 
+  useEffect(() => {
+    if (user) {
+      const uName = user.full_name || user.name || (user.email ? user.email.split('@')[0] : '');
+      const uDept = typeof user.department === 'object' ? user.department?.name : (user.department || 'Sales');
+      setFormData(prev => ({
+        ...prev,
+        requesterName: uName || prev.requesterName,
+        requesterDepartment: uDept || prev.requesterDepartment
+      }));
+    }
+  }, [user]);
+
   const availableContractTypes = {
     'Revenue / Sales': ['Proposal', 'Master Services Agreement (MSA)', 'Statement of Work (SOW)', 'Change Order'],
     'Procurement / Expenses': ['Vendor Agreement', 'Non-Disclosure Agreement (NDA)', 'Software License Agreement'],
@@ -83,7 +95,7 @@ export default function RequestWizard() {
       if (draft && draft.currentStatus === 'Draft') {
         // Pre-populate formData with the draft values
         setFormData({
-          requesterName: draft.requesterName || user?.name || 'John Sales',
+          requesterName: draft.requesterName || user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : ''),
           requesterDepartment: user?.department || 'Sales',
           businessUnit: 'Software Services',
           entityType: draft.entityType || 'Client / Customer',

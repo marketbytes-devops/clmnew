@@ -11,11 +11,11 @@ export default function UserProfileModal({ isOpen, onClose }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: user?.name || 'John Sales',
-    email: user?.email || 'john.sales@marketbytes.com',
-    department: user?.department || 'UI/UX & Engineering',
-    title: user?.title || 'Department Lead',
-    role: user?.role || 'Department Lead',
+    name: user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : ''),
+    email: user?.email || '',
+    department: typeof user?.department === 'object' ? user?.department?.name : (user?.department || 'Operations'),
+    title: user?.title || user?.role || 'Member',
+    role: user?.role || 'Member',
     emailNotifications: true,
     slaAlerts: true,
   });

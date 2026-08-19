@@ -8,8 +8,16 @@ export default function ProfilePage() {
   const { user, setUser, logout } = useAppContext();
 
   // Local form state initialized from global user context
-  const [name, setName] = useState(user?.name || '');
+  const [name, setName] = useState(user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : ''));
   const [email, setEmail] = useState(user?.email || '');
+
+  // Sync state when user context resolves on client side
+  React.useEffect(() => {
+    if (user) {
+      setName(user.full_name || user.name || (user.email ? user.email.split('@')[0] : ''));
+      setEmail(user.email || '');
+    }
+  }, [user]);
 
   // Success indicator banner state
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -24,6 +32,7 @@ export default function ProfilePage() {
     // Save changes to the global context state
     const updatedUser = {
       ...user,
+      full_name: name,
       name,
       email
     };
@@ -50,14 +59,14 @@ export default function ProfilePage() {
         {/* Profile Card Header */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-5 pb-6 border-b border-[#f0f5ee]">
           <div className="flex flex-col sm:flex-row items-center gap-5">
-            <div className="w-20 h-20 rounded-2xl bg-[#4f6e43] text-white flex items-center justify-center font-black text-3xl shadow-md">
-              {name ? name.charAt(0).toUpperCase() : 'U'}
+            <div suppressHydrationWarning className="w-20 h-20 rounded-2xl bg-[#4f6e43] text-white flex items-center justify-center font-black text-3xl shadow-md">
+              {name ? name.charAt(0).toUpperCase() : (email ? email.charAt(0).toUpperCase() : 'U')}
             </div>
             <div className="text-center sm:text-left">
-              <h3 className="text-lg font-black text-[#1c2918]">{name || 'Requester User'}</h3>
-              <p className="text-xs font-bold text-[#637756] mt-0.5">{email || 'user@company.com'}</p>
-              <span className="inline-block mt-2 px-3 py-1 bg-[#e7f2df] text-[#2c441f] border border-[#a8c79c] rounded-full text-[10px] font-black uppercase tracking-wider">
-                Role: Requester
+              <h3 suppressHydrationWarning className="text-lg font-black text-[#1c2918]">{name || email || 'Logged In User'}</h3>
+              <p suppressHydrationWarning className="text-xs font-bold text-[#637756] mt-0.5">{email}</p>
+              <span suppressHydrationWarning className="inline-block mt-2 px-3 py-1 bg-[#e7f2df] text-[#2c441f] border border-[#a8c79c] rounded-full text-[10px] font-black uppercase tracking-wider">
+                Role: {user?.role?.name || user?.role || 'Requester'}
               </span>
             </div>
           </div>

@@ -57,8 +57,9 @@ export default function Header() {
     return 'Dashboard';
   };
 
-  const userInitial = user?.name ? user.name.charAt(0) : 'J';
-  const userEmail = user?.email || `${user?.name?.toLowerCase().replace(/\s+/g, '.') || 'john.sales'}@marketbytes.com`;
+  const userName = user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : 'User');
+  const userInitial = userName ? userName.charAt(0).toUpperCase() : 'U';
+  const userEmail = user?.email || '';
 
   const notificationsList = [
     {
@@ -180,14 +181,14 @@ export default function Header() {
             className="flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition-all shadow-2xs cursor-pointer"
           >
             <div className="w-8 h-8 bg-[#15803d] text-white rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-              {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'JS'}
+              {userInitial}
             </div>
             <div className="text-left hidden sm:block">
               <span className="font-bold text-slate-900 text-xs tracking-tight block leading-tight">
-                {user?.name || 'John Sales'}
+                {userName}
               </span>
               <span className="text-[10px] font-medium text-slate-400 block leading-tight mt-0.5">
-                {user?.title || user?.role || 'Account Executive'}
+                {user?.title || (typeof user?.role === 'object' ? user?.role?.name : user?.role) || 'User'}
               </span>
             </div>
           </button>
@@ -199,7 +200,7 @@ export default function Header() {
               {/* User Header */}
               <div className="pb-2.5">
                 <p className="font-extrabold text-slate-900 text-sm leading-tight">
-                  {user?.name || 'John Sales'}
+                  {userName}
                 </p>
                 <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
                   {userEmail}

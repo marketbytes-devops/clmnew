@@ -208,14 +208,14 @@ export default function Sidebar() {
           >
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-9 h-9 rounded-full bg-[#1e293b] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'JS'}
+                {(user?.full_name || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {user?.name || 'John Sales'}
+                  {user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : 'Logged In User')}
                 </p>
                 <p className="text-[11px] font-medium text-slate-400 truncate">
-                  {user?.title || user?.role || 'Account Executive'}
+                  {user?.title || (typeof user?.role === 'object' ? user?.role?.name : user?.role) || 'User'}
                 </p>
               </div>
             </div>

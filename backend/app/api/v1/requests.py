@@ -86,11 +86,15 @@ def create_request(
         {"step": 4, "role": "Executive", "name": "David Chen", "status": "Queued", "timestamp": None}
     ]
 
+    user_id = current_user.id if current_user else None
+    org_id = current_user.org_id if current_user and current_user.org_id else 1
+
     # Update req_dict to avoid duplicate argument errors in constructor
     req_dict.update({
         "tracking_id": tracking_id,
         "status": initial_status,
-        "requester_id": current_user_id,
+        "requester_id": user_id,
+        "org_id": org_id,
         "version_label": "v1.0",
         "approval_sequence": default_sequence,
         "inline_comments": []

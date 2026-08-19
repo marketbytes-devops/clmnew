@@ -49,8 +49,27 @@ export const MOCK_USERS = [
 ];
 
 export const AppProvider = ({ children }) => {
-  // Auth & Session States (In-Memory State backed by HttpOnly Cookies)
-  const [user, setUser] = useState(null);
+  // Auth & Session States
+  const [user, setUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed) {
+            return {
+              ...parsed,
+              name: parsed.full_name || parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Logged In User'),
+              full_name: parsed.full_name || parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Logged In User')
+            };
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -238,17 +257,23 @@ export const AppProvider = ({ children }) => {
   };
 
   const login = (userData, token) => {
+    const normalizedUser = userData ? {
+      ...userData,
+      name: userData.full_name || userData.name || (userData.email ? userData.email.split('@')[0] : 'Logged In User'),
+      full_name: userData.full_name || userData.name || (userData.email ? userData.email.split('@')[0] : 'Logged In User')
+    } : null;
+
     if (token) {
       setAuthToken(token);
     }
-    // Clean up any legacy localStorage tokens
+
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      if (token) localStorage.setItem('token', token);
+      if (normalizedUser) localStorage.setItem('user', JSON.stringify(normalizedUser));
       localStorage.removeItem('clm_custom_users');
       localStorage.removeItem('clm_custom_departments');
     }
-    setUser(userData);
+    setUser(normalizedUser);
     setIsAuthenticated(true);
     setUsers([]);
     setDepartments([]);

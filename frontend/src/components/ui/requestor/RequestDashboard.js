@@ -147,11 +147,11 @@ export default function RequestDashboard() {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
               <div className="w-9 h-9 rounded-xl bg-[#4f6e43] flex items-center justify-center text-white font-black text-sm shadow-sm">
-                {user?.name?.charAt(0) || 'J'}
+                {(user?.full_name || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
               </div>
               <div className="text-left pr-2">
                 <p className="text-xs font-black text-[#1c2918] leading-tight">
-                  {user?.name || 'John Sales (Account Executive)'}
+                  {user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : 'Logged In User')}
                 </p>
               </div>
             </div>
@@ -159,8 +159,8 @@ export default function RequestDashboard() {
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-56 bg-white border border-[#cbdcbe] rounded-2xl shadow-xl z-50 overflow-hidden">
                 <div className="p-4 border-b border-[#cbdcbe] bg-[#f9fbf8]">
-                  <p className="font-black text-[#1c2918] text-sm">{user?.name || 'John Sales'}</p>
-                  <p className="text-[10px] font-bold text-[#637756] mt-0.5">{user?.email || 'john.sales@acmecorp.com'}</p>
+                  <p className="font-black text-[#1c2918] text-sm">{user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : 'Logged In User')}</p>
+                  <p className="text-[10px] font-bold text-[#637756] mt-0.5">{user?.email || ''}</p>
                 </div>
                 <div className="p-2">
                   <button 
@@ -415,7 +415,7 @@ export default function RequestDashboard() {
                       </span>
                     </td>
                     <td className="py-4 px-4 font-bold text-[#1c2918] text-sm">
-                      {req.requesterName || user?.name || 'John Sales'}
+                      {req.requesterName || user?.full_name || user?.name || (user?.email ? user.email.split('@')[0] : 'Logged In User')}
                     </td>
                     <td className="py-4 px-4 text-xs font-bold text-[#35482a]">
                       <div className="flex items-center gap-2">
