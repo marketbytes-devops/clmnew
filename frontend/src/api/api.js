@@ -90,7 +90,8 @@ api.interceptors.response.use(
       const isAuthEndpoint = originalRequest.url && (
         originalRequest.url.includes('/auth/login') ||
         originalRequest.url.includes('/auth/register') ||
-        originalRequest.url.includes('/auth/refresh')
+        originalRequest.url.includes('/auth/refresh') ||
+        originalRequest.url.includes('/auth/me')
       );
       const isPublicView = typeof window !== 'undefined' && (
         window.location.pathname.startsWith('/public') ||
