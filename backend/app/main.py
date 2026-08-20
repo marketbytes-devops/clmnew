@@ -18,12 +18,72 @@ logger = logging.getLogger("uvicorn.error")
 async def lifespan(app: FastAPI):
     logger.info("Attempting to connect to the database...")
     try:
-        from app.database import engine
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-        logger.info("✅ Database connection established successfully!")
+        from app.database import engine, Base
+        import app.models  # noqa: F401
+        from app.core import models as core_models  # noqa: F401
+        
+        # Automatically create any missing tables (users, organizations, pending_registrations, roles, etc.)
+        Base.metadata.create_all(bind=engine)
+        
+        # Auto-seed standard roles and base org if DB is fresh
+        from app.database import SessionLocal
+        from app.core.models import Organization, Role, User
+        from app.core.security import get_password_hash
+        import json
+        
+        db = SessionLocal()
+        try:
+            base_org = db.query(Organization).filter(Organization.id == 1).first()
+            if not base_org:
+                base_org = Organization(id=1, name="Marketbytes", subdomain="marketbytes")
+                db.add(base_org)
+                db.commit()
+                
+            standard_roles = [
+                ("Admin", "Organization Administrator with full access", True, {"all": True}),
+                ("Contract Manager", "Full control over contract drafting, review, negotiation, and execution", True, {"contracts": {"view": True, "create": True, "edit": True, "delete": True, "approve": True, "reject": True}}),
+                ("Requester", "Create, submit, and track contract requests", True, {"contracts": {"view": True, "create": True, "edit": True}}),
+                ("Reviewer", "Review, redline, and provide department feedback on contracts", True, {"contracts": {"view": True, "edit": True, "comment": True}}),
+                ("Department Lead", "Approve dependencies and assign department reviewers", True, {"dependencies": {"approve": True, "assign": True}}),
+                ("Approver", "Signatory and final executive contract approver", True, {"contracts": {"approve": True, "sign": True}})
+            ]
+            
+            for r_name, r_desc, is_sys, perms in standard_roles:
+                existing_role = db.query(Role).filter(Role.org_id == 1, Role.name.ilike(r_name)).first()
+                if not existing_role:
+                    created_role = Role(
+                        org_id=1,
+                        name=r_name,
+                        description=r_desc,
+                        is_system_role=is_sys,
+                        permissions_json=perms
+                    )
+                    db.add(created_role)
+            
+            # Ensure superadmin user exists
+            admin_user = db.query(User).filter(User.email == "admin@clm.com").first()
+            if not admin_user:
+                admin_role = db.query(Role).filter(Role.org_id == 1, Role.name.ilike("Admin")).first()
+                admin_user = User(
+                    org_id=1,
+                    email="admin@clm.com",
+                    password_hash=get_password_hash("admin123"),
+                    full_name="System Administrator",
+                    is_active=True
+                )
+                if admin_role:
+                    admin_user.roles.append(admin_role)
+                db.add(admin_user)
+                
+            db.commit()
+        except Exception as seed_err:
+            logger.warning(f"Notice on DB auto-seed: {seed_err}")
+        finally:
+            db.close()
+
+        logger.info("✅ Database connected and all tables verified successfully!")
     except Exception as e:
-        logger.error(f"❌ Failed to connect to the database: {e}")
+        logger.error(f"❌ Failed to initialize database: {e}")
     yield
     logger.info("Application shutdown complete.")
 

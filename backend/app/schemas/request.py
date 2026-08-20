@@ -38,8 +38,8 @@ class RequestDependencyOut(RequestDependencyBase):
         from_attributes = True
 
 class ContractRequestBase(BaseModel):
-    title: str
-    description: str
+    title: Optional[str] = "Contract Request"
+    description: Optional[str] = "Contract request submitted for review"
     priority: Optional[str] = "Medium"
     
     # Extended Wizard Attributes
