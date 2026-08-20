@@ -1,6 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import * as apiService from '../service/apiService';
+import APIService, * as apiService from '../service/apiService';
 import api, { setAuthToken } from '../api/api';
 
 const AppContext = createContext();
@@ -106,6 +106,9 @@ export const AppProvider = ({ children }) => {
     const createdDate = r.createdAt || r.created_at ? new Date(r.createdAt || r.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
     const estimatedValue = r.dealValue || r.deal_value || r.estimatedValue || 0;
 
+    const customClientTerms = r.custom_terms || r.customClientTerms || r.customTerms || r.specialTerms || '';
+    const scopeSummary = r.scopeSummary || r.scope_summary || r.description || r.purpose || '';
+
     return {
       ...r,
       id: r.id || Date.now(),
@@ -126,6 +129,11 @@ export const AppProvider = ({ children }) => {
       estimatedValue,
       dealValue: estimatedValue,
       deal_value: estimatedValue,
+      customClientTerms,
+      custom_terms: customClientTerms,
+      customTerms: customClientTerms,
+      scopeSummary,
+      description: scopeSummary,
       dependencies: r.dependencies || []
     };
   };
@@ -155,19 +163,32 @@ export const AppProvider = ({ children }) => {
 
   const loadAssigneeOptions = useCallback(async () => {
     try {
-      const [managersRes, leadsRes] = await Promise.allSettled([
-        apiService.getContractManagers(),
-        apiService.getDepartmentLeads()
-      ]);
+      const users = await apiService.getAllUsers().catch(() => []);
+      if (Array.isArray(users) && users.length > 0) {
+        const cms = users.map(u => ({
+          id: u.id,
+          name: u.full_name || u.name || (u.email ? u.email.split('@')[0] : `User #${u.id}`),
+          full_name: u.full_name || u.name || (u.email ? u.email.split('@')[0] : `User #${u.id}`),
+          email: u.email,
+          role: u.roles && u.roles.length > 0 ? (typeof u.roles[0] === 'object' ? u.roles[0].name : u.roles[0]) : (u.role || 'User')
+        }));
+        
+        setContractManagers(cms);
 
-      if (managersRes.status === 'fulfilled' && managersRes.value?.data) {
-        setContractManagers(managersRes.value.data);
-      }
-      if (leadsRes.status === 'fulfilled' && leadsRes.value?.data) {
-        setDepartmentLeads(leadsRes.value.data);
+        const deptMap = {};
+        users.forEach(u => {
+          const deptName = typeof u.department === 'object' ? u.department?.name : (u.department || 'General');
+          if (!deptMap[deptName]) deptMap[deptName] = [];
+          deptMap[deptName].push({
+            id: u.id,
+            name: u.full_name || u.name || (u.email ? u.email.split('@')[0] : u.email),
+            role: u.roles && u.roles.length > 0 ? (typeof u.roles[0] === 'object' ? u.roles[0].name : u.roles[0]) : (u.role || 'User')
+          });
+        });
+        setDepartmentLeads(deptMap);
       }
     } catch (err) {
-      console.error('Error loading assignee options:', err);
+      console.error('Error loading assignee options from DB:', err);
     }
   }, []);
 
@@ -265,6 +286,10 @@ export const AppProvider = ({ children }) => {
 
   const addUser = (newUser) => {
     setUsers(prev => [newUser, ...prev]);
+  };
+
+  const removeUser = (userIdOrEmail) => {
+    setUsers(prev => prev.filter(u => u.id !== userIdOrEmail && u.email !== userIdOrEmail));
   };
 
   const [departments, setDepartments] = useState([]);
@@ -447,6 +472,7 @@ export const AppProvider = ({ children }) => {
     setUsers,
     saveUsersLocally,
     addUser,
+    removeUser,
     departments,
     setDepartments,
     saveDepartmentsLocally,

@@ -3,7 +3,7 @@ import { X, Check } from 'lucide-react';
 
 export default function AddDependencyModal({ isOpen, onClose, onAdd, requestId }) {
   const [formData, setFormData] = useState({
-    department: 'Engineering',
+    department: 'UI/UX Design',
     assignee_name: '',
     task_objective: '',
     sla_deadline: '',
@@ -37,7 +37,17 @@ export default function AddDependencyModal({ isOpen, onClose, onAdd, requestId }
   };
 
   const departments = [
-    "Engineering", "Design", "Legal", "Finance", "Security", "Compliance"
+    "UI/UX Design",
+    "Frontend Engineering",
+    "Backend & APIs",
+    "DevOps & Infrastructure",
+    "Legal & Compliance Review",
+    "Finance & Tax Review",
+    "Security & Risk Assessment",
+    "Engineering",
+    "Design",
+    "Legal",
+    "Finance"
   ];
 
   return (

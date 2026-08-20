@@ -64,10 +64,14 @@ def create_user(
         role = db.query(Role).filter(Role.id == user.role_id).first()
         if role:
             db_user.roles.append(role)
-    elif hasattr(user, 'role') and user.role:
-        role = db.query(Role).filter(Role.org_id == target_org_id, Role.name.ilike(user.role)).first()
-        if role:
-            db_user.roles.append(role)
+            
+    if not db_user.roles and hasattr(user, 'role') and user.role:
+        role = db.query(Role).filter(Role.org_id == target_org_id, func.lower(Role.name) == user.role.lower()).first()
+        if not role:
+            role = Role(org_id=target_org_id, name=user.role, description=f"{user.role} role", is_system_role=True)
+            db.add(role)
+            db.flush()
+        db_user.roles.append(role)
         
     db.add(db_user)
     db.commit()
@@ -115,6 +119,16 @@ def update_role(role_id: int, role: RoleUpdate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_role)
     return db_role
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_tenant_user)):
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    db.delete(db_user)
+    db.commit()
+    return {"detail": "User deleted successfully", "id": user_id}
 
 @router.delete("/roles/{role_id}")
 def delete_role(role_id: int, db: Session = Depends(get_db)):

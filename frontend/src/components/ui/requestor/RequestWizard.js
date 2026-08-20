@@ -57,12 +57,12 @@ export default function RequestWizard() {
       { name: 'UI/UX Design Prototypes', description: 'Complete Figma visual identity and style guide', timeline: 'Week 2' },
       { name: 'Full Stack Integration', description: 'Next.js application with cloud API backend', timeline: 'Week 5' }
     ],
-    selectedDependencies: ['UI/UX Design', 'Backend & APIs'],
+    selectedDependencies: [],
     customClientTerms: '',
 
     managerAssignmentMode: 'manual',
     contractManager: 'Sarah Jenkins',
-    requirePreDraftingSupport: true,
+    requirePreDraftingSupport: false,
     dependencyMatrix: []
   });
 
@@ -77,6 +77,16 @@ export default function RequestWizard() {
       }));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (contractManagers && contractManagers.length > 0) {
+      const firstCm = contractManagers[0];
+      const cmName = typeof firstCm === 'object' ? (firstCm.full_name || firstCm.name) : firstCm;
+      if (cmName) {
+        setFormData(prev => ({ ...prev, contractManager: cmName }));
+      }
+    }
+  }, [contractManagers]);
 
   const availableContractTypes = {
     'Revenue / Sales': ['Proposal', 'Master Services Agreement (MSA)', 'Statement of Work (SOW)', 'Change Order'],
@@ -113,12 +123,12 @@ export default function RequestWizard() {
           priority: draft.priority || 'Medium',
           scopeSummary: draft.scopeSummary || '',
           deliverables: draft.deliverables || [],
-          selectedDependencies: draft.selectedDependencies || [],
+          selectedDependencies: [],
           customClientTerms: draft.customClientTerms || '',
           managerAssignmentMode: draft.managerAssignmentMode || 'manual',
           contractManager: draft.contractManager || 'Sarah Jenkins',
-          requirePreDraftingSupport: draft.requirePreDraftingSupport ?? true,
-          dependencyMatrix: draft.dependencies || []
+          requirePreDraftingSupport: false,
+          dependencyMatrix: []
         });
       }
     }
@@ -174,15 +184,12 @@ export default function RequestWizard() {
   const handleApplyAICopilotSuggestions = () => {
     if (!copilotSuggestions) return;
     
-    // Apply baseline deliverables and dependencies suggested by Gemini
+    // Apply baseline deliverables suggested by Gemini
     setFormData(prev => ({
       ...prev,
       deliverables: copilotSuggestions.deliverables && copilotSuggestions.deliverables.length > 0 
         ? copilotSuggestions.deliverables 
-        : prev.deliverables,
-      selectedDependencies: copilotSuggestions.suggestedDependencies && copilotSuggestions.suggestedDependencies.length > 0
-        ? copilotSuggestions.suggestedDependencies
-        : prev.selectedDependencies
+        : prev.deliverables
     }));
   };
 
@@ -240,7 +247,6 @@ export default function RequestWizard() {
         ...prev,
         scopeSummary: res.data.scopeSummary || prev.scopeSummary,
         deliverables: res.data.deliverables || prev.deliverables,
-        selectedDependencies: res.data.suggestedDependencies || prev.selectedDependencies,
         customClientTerms: res.data.customClientTerms || prev.customClientTerms,
         clientName: res.data.clientName || prev.clientName || 'Acme Corp Enterprise (AI Detected)'
       }));
@@ -347,18 +353,14 @@ export default function RequestWizard() {
       
       deliverables: formData.deliverables,
       customTerms: formData.customClientTerms,
-      requireDependencies: formData.requirePreDraftingSupport,
+      customClientTerms: formData.customClientTerms,
+      custom_terms: formData.customClientTerms,
+      requireDependencies: false,
       assignedToId: assignedToId,
       
       requestName: `${formData.clientName} - ${formData.contractType}`,
       requestNameDisplay: `${formData.clientName} (${formData.contractType})`,
-      dependencies: formData.requirePreDraftingSupport ? formData.dependencyMatrix.map(item => ({
-        department: item.department,
-        assigneeName: item.lead,
-        taskObjective: item.objective,
-        slaDeadline: item.sla,
-        requiredInputs: item.requiredInputs || []
-      })) : []
+      dependencies: []
     };
 
     const res = await submitNewRequest(payload, isDraft);
@@ -719,7 +721,7 @@ export default function RequestWizard() {
             { step: 1, label: 'Core Context', sub: 'Requester & Client Meta' },
             { step: 2, label: 'Classification', sub: 'Commercial & Timeline' },
             { step: 3, label: 'Scope Briefing', sub: 'AI Document Parsing' },
-            { step: 4, label: 'Routing Setup', sub: 'Dependencies & Assignee' },
+            { step: 4, label: 'Routing Setup', sub: 'Manager & Review' },
           ].map((item) => (
             <div
               key={item.step}
@@ -1137,52 +1139,6 @@ export default function RequestWizard() {
                   </div>
                 </div>
 
-                {/* Technical / Operational Dependencies Multi-Select */}
-                <div className="space-y-3">
-                  <label className="block text-xs font-black text-[#314627]">
-                    Technical / Operational Dependencies Identified by Sales
-                  </label>
-                  <p className="text-[11px] font-bold text-[#627755]">Checked items will automatically set up SLA task tracking in Step 4.</p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-                    {[
-                      'UI/UX Design',
-                      'Frontend Engineering',
-                      'Backend & APIs',
-                      'DevOps & Infrastructure',
-                      'Legal & Compliance Review',
-                      'Finance & Tax Review'
-                    ].map(dep => {
-                      const isChecked = formData.selectedDependencies.includes(dep);
-                      return (
-                        <label
-                          key={dep}
-                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${isChecked
-                              ? 'border-[#4f6e43] bg-[#e8f3e2] text-[#233818] font-black shadow-2xs'
-                              : 'border-[#cbdcbe] text-[#556b49] hover:bg-[#f4f9f2] font-bold'
-                            }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setFormData(prev => ({
-                                ...prev,
-                                selectedDependencies: checked
-                                  ? [...prev.selectedDependencies, dep]
-                                  : prev.selectedDependencies.filter(d => d !== dep)
-                              }));
-                            }}
-                            className="w-4 h-4 text-[#4f6e43] rounded focus:ring-[#4f6e43]"
-                          />
-                          <span className="text-xs">{dep}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* Custom Terms */}
                 <div>
                   <label className="block text-xs font-black text-[#314627] mb-2">
@@ -1204,8 +1160,8 @@ export default function RequestWizard() {
           {currentStep === 4 && (
             <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#cbdcbe] shadow-sm space-y-8 animate-fadeIn">
               <div className="border-b border-[#d8e7cf] pb-5">
-                <h2 className="text-xl font-black text-[#1c2918]">Step 4: Routing & Pre-Drafting Dependency Setup</h2>
-                <p className="text-sm font-bold text-[#5e7152] mt-1">Assign the Contract Manager and configure automated task triggers for technical team leads.</p>
+                <h2 className="text-xl font-black text-[#1c2918]">Step 4: Routing & Contract Manager Assignment</h2>
+                <p className="text-sm font-bold text-[#5e7152] mt-1">Assign the Contract Manager who will handle dependency intake, review, and contract drafting.</p>
               </div>
 
               {/* Section A: Management Assignment */}
@@ -1241,12 +1197,14 @@ export default function RequestWizard() {
                       onChange={(e) => handleChange('contractManager', e.target.value)}
                       className="w-full px-4 py-3.5 rounded-2xl bg-[#f4f9f2] border-2 border-[#b8ccab] text-sm font-black text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
                     >
-                      {contractManagers.length > 0 ? (
+                      {contractManagers && contractManagers.length > 0 ? (
                         contractManagers.map((cm, i) => (
-                          <option key={i} value={cm.name}>{cm.name} • ({cm.workload})</option>
+                          <option key={i} value={cm.name || cm.full_name}>
+                            {cm.name || cm.full_name} {cm.role ? `• (${cm.role})` : ''}
+                          </option>
                         ))
                       ) : (
-                        <option value="Sarah Jenkins">Sarah Jenkins (Normal Workload - Default)</option>
+                        <option value="">Select Contract Manager</option>
                       )}
                     </select>
                   </div>
@@ -1262,122 +1220,6 @@ export default function RequestWizard() {
                   </div>
                 )}
               </div>
-
-              {/* Section B: Pre-Drafting Dependency Tasks Configuration */}
-              <div className="space-y-5 pt-5 border-t border-[#d8e7cf]">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[#436137]">Section B: Pre-Drafting Dependency Setup</h3>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <span className="text-xs font-black text-[#314627]">Require Pre-Drafting Dependency Support?</span>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only" 
-                        checked={formData.requirePreDraftingSupport}
-                        onChange={(e) => handleChange('requirePreDraftingSupport', e.target.checked)}
-                      />
-                      <div className={`block w-10 h-6 rounded-full transition-colors ${formData.requirePreDraftingSupport ? 'bg-[#4f6e43]' : 'bg-[#cbdcbe]'}`}></div>
-                      <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.requirePreDraftingSupport ? 'transform translate-x-4' : ''}`}></div>
-                    </div>
-                  </label>
-                </div>
-
-                {formData.requirePreDraftingSupport && (
-                  <div className="bg-[#f4f9f2] rounded-3xl border border-[#cbdcbe] shadow-sm overflow-hidden animate-fadeIn">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-sm border-collapse">
-                        <thead>
-                          <tr className="bg-[#e9f2e4] border-b border-[#cbdcbe] text-[10px] font-black text-[#2f4820] uppercase tracking-wider">
-                            <th className="p-4">Department / Function</th>
-                            <th className="p-4">Lead / Assignee</th>
-                            <th className="p-4">Task Objective</th>
-                            <th className="p-4">SLA / Deadline</th>
-                            <th className="p-4">Required Field Inputs</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#d8e7cf]">
-                          {formData.dependencyMatrix.length > 0 ? (
-                            formData.dependencyMatrix.map((item, idx) => (
-                              <tr key={idx} className="bg-white hover:bg-[#fafdf9]">
-                                <td className="p-4 font-black text-[#314627] whitespace-nowrap">
-                                  {item.department}
-                                </td>
-                                <td className="p-4 min-w-[200px]">
-                                  <select 
-                                    value={item.lead} 
-                                    onChange={(e) => updateMatrixItem(idx, 'lead', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-[#f4f9f2] border border-[#cbdcbe] text-xs font-bold text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
-                                  >
-                                    {(departmentLeads && departmentLeads[item.department] ? departmentLeads[item.department] : ['Team Lead / Manager']).map((leadItem, i) => {
-                                      const name = typeof leadItem === 'object' && leadItem !== null ? (leadItem.name || '') : leadItem;
-                                      const label = typeof leadItem === 'object' && leadItem !== null ? `${leadItem.name} (${leadItem.role})` : leadItem;
-                                      return (
-                                        <option key={i} value={name}>{label}</option>
-                                      );
-                                    })}
-                                  </select>
-                                </td>
-                                <td className="p-4 min-w-[250px]">
-                                  <input 
-                                    type="text" 
-                                    value={item.objective} 
-                                    onChange={(e) => updateMatrixItem(idx, 'objective', e.target.value)}
-                                    placeholder="Task Objective..."
-                                    className="w-full px-3 py-2 rounded-xl bg-white border border-[#cbdcbe] text-xs font-semibold text-[#1c2918] focus:ring-2 focus:ring-[#4f6e43]"
-                                  />
-                                </td>
-                                <td className="p-4 min-w-[150px]">
-                                  <select 
-                                    value={item.sla} 
-                                    onChange={(e) => updateMatrixItem(idx, 'sla', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-[#e7f2df] border border-[#a8c79c] text-xs font-black text-[#263b1a] focus:ring-2 focus:ring-[#4f6e43]"
-                                  >
-                                    <option value="12 Hours">12 Hours</option>
-                                    <option value="24 Hours">24 Hours</option>
-                                    <option value="48 Hours">48 Hours</option>
-                                    <option value="1 Week">1 Week</option>
-                                  </select>
-                                </td>
-                                <td className="p-4 min-w-[200px]">
-                                  <div className="flex flex-col gap-2 text-[10px] font-bold text-[#556b49]">
-                                    {['Hours Estimate', 'Resource Count', 'Costing', 'Feasibility Note'].map(req => {
-                                      const isChecked = item.requiredInputs?.includes(req);
-                                      return (
-                                        <label key={req} className="flex items-center gap-2 cursor-pointer">
-                                          <input 
-                                            type="checkbox" 
-                                            checked={isChecked}
-                                            onChange={(e) => {
-                                              const checked = e.target.checked;
-                                              const updatedInputs = checked 
-                                                ? [...(item.requiredInputs || []), req]
-                                                : (item.requiredInputs || []).filter(r => r !== req);
-                                              updateMatrixItem(idx, 'requiredInputs', updatedInputs);
-                                            }}
-                                            className="w-3.5 h-3.5 text-[#4f6e43] rounded focus:ring-[#4f6e43]"
-                                          />
-                                          <span>{req}</span>
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan="5" className="p-6 text-center text-xs font-bold text-[#768a68]">
-                                No dependencies selected in Step 3.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-
             </div>
           )}
 

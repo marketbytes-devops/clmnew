@@ -180,14 +180,14 @@ export default function Header() {
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition-all shadow-2xs cursor-pointer"
           >
-            <div className="w-8 h-8 bg-[#15803d] text-white rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+            <div suppressHydrationWarning className="w-8 h-8 bg-[#15803d] text-white rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
               {userInitial}
             </div>
             <div className="text-left hidden sm:block">
-              <span className="font-bold text-slate-900 text-xs tracking-tight block leading-tight">
+              <span suppressHydrationWarning className="font-bold text-slate-900 text-xs tracking-tight block leading-tight">
                 {userName}
               </span>
-              <span className="text-[10px] font-medium text-slate-400 block leading-tight mt-0.5">
+              <span suppressHydrationWarning className="text-[10px] font-medium text-slate-400 block leading-tight mt-0.5">
                 {user?.title || (typeof user?.role === 'object' ? user?.role?.name : user?.role) || 'User'}
               </span>
             </div>
@@ -199,10 +199,10 @@ export default function Header() {
               
               {/* User Header */}
               <div className="pb-2.5">
-                <p className="font-extrabold text-slate-900 text-sm leading-tight">
+                <p suppressHydrationWarning className="font-extrabold text-slate-900 text-sm leading-tight">
                   {userName}
                 </p>
-                <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
+                <p suppressHydrationWarning className="text-xs font-medium text-slate-500 mt-0.5 truncate">
                   {userEmail}
                 </p>
               </div>

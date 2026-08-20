@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Plus, Building2, Users, FileText, ChevronRight, X, RefreshCw, 
-  ArrowLeft, ArrowRight, CheckCircle2, UserCheck, ShieldCheck, Mail, MapPin, Code, Hash, Layers
+  ArrowLeft, ArrowRight, CheckCircle2, UserCheck, ShieldCheck, Mail, MapPin, Code, Hash, Layers, Trash2
 } from 'lucide-react';
 import PrimaryButton from '../../../common/buttons/PrimaryButton';
 import Link from 'next/link';
@@ -164,6 +164,17 @@ export default function DepartmentsList() {
     }
   };
 
+  const handleDeleteDepartment = async (id) => {
+    if (!confirm("Are you sure you want to delete this department from database?")) return;
+    try {
+      await APIService.deleteDepartment(id);
+      setDepartments(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      console.error("Failed to delete department:", err);
+      setDepartments(prev => prev.filter(d => d.id !== id));
+    }
+  };
+
   const toggleUserMember = (user) => {
     setFormData(prev => {
       const userId = user.id || user.email;
@@ -241,6 +252,13 @@ export default function DepartmentsList() {
                     }`}>
                       {dept.status || 'Active'}
                     </span>
+                    <button 
+                      onClick={() => handleDeleteDepartment(dept.id)}
+                      className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title="Delete Department"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
                 

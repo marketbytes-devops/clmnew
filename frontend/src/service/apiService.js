@@ -223,8 +223,9 @@ export const APIService = {
       full_name: userData.name || userData.full_name,
       is_active: true,
       profile_picture_url: userData.avatar_url || userData.avatarUrl || null,
-      role_id: userData.role_id || null,
-      department_id: userData.department_id || null
+      role_id: typeof userData.role_id === 'number' ? userData.role_id : null,
+      role: userData.role || null,
+      department_id: typeof userData.department_id === 'number' ? userData.department_id : null
     };
 
     const res = await api.post('/api/v1/admin/users', payload);
@@ -253,16 +254,26 @@ export const APIService = {
 
   getDepartments: async () => {
     try {
-      const res = await api.get('/api/v1/admin/departments');
+      const res = await api.get('/api/v1/departments');
       return res.data || [];
     } catch (err) {
-      console.warn("Could not fetch departments:", err.message);
-      return [];
+      try {
+        const res = await api.get('/api/v1/admin/departments');
+        return res.data || [];
+      } catch (err2) {
+        console.warn("Could not fetch departments:", err2.message);
+        return [];
+      }
     }
   },
 
   createDepartment: async (deptData) => {
     const res = await api.post('/api/v1/admin/departments', deptData);
+    return res.data;
+  },
+
+  deleteDepartment: async (id) => {
+    const res = await api.delete(`/api/v1/admin/departments/${id}`);
     return res.data;
   },
 
@@ -585,6 +596,9 @@ export const submitClientRedlines = APIService.submitClientRedlines;
 export const executeClientSignature = APIService.executeClientSignature;
 export const generateClientInvite = APIService.generateClientInvite;
 export const resetClientDemo = APIService.resetClientDemo;
+
+export const getAllUsers = APIService.getAllUsers;
+export const getRequests = APIService.getRequests;
 
 export { APIService };
 export default APIService;
