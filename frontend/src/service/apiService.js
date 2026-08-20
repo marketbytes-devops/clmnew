@@ -56,7 +56,8 @@ export const updateAdminSettings = async (settings) => {
 // ==========================================
 export const getContractRequests = async () => {
   try {
-    return await get('/api/v1/requests');
+    const res = await api.get('/api/v1/requests');
+    return res.data || [];
   } catch (err) {
     console.warn('Backend server offline, returning fallback contract requests');
     return [];
@@ -64,18 +65,58 @@ export const getContractRequests = async () => {
 };
 
 export const getNotifications = async () => {
-  const notifications = await get('/api/contracts/notifications');
-  return { data: notifications };
+  try {
+    const notifications = await get('/api/contracts/notifications');
+    return { data: notifications };
+  } catch (err) {
+    return { data: [] };
+  }
 };
 
 // Fetch quick metrics for Dashboard header KPIs
 export const getRequestMetrics = async () => {
-  return await get('/api/contracts/metrics');
+  try {
+    return await get('/api/contracts/metrics');
+  } catch (err) {
+    return null;
+  }
 };
 
 // Create / submit a new contract request from the 4-Step Wizard
 export const createContractRequest = async (requestPayload) => {
-  return await post('/api/contracts/requests', requestPayload);
+  const payload = {
+    title: requestPayload.title || `${requestPayload.contractType || 'Contract'} - ${requestPayload.clientName || requestPayload.entityName || 'Client'}`,
+    description: requestPayload.description || requestPayload.scopeSummary || 'Contract request submitted for review',
+    priority: requestPayload.priority || 'Medium',
+    requester_department: requestPayload.requesterDepartment || requestPayload.department,
+    business_unit: requestPayload.businessUnit,
+    entity_type: requestPayload.entityType,
+    entity_name: requestPayload.clientName || requestPayload.entityName,
+    primary_contact_name: requestPayload.primaryContactName,
+    primary_contact_email: requestPayload.primaryContactEmail,
+    jurisdiction: requestPayload.jurisdiction,
+    category: requestPayload.contractCategory || requestPayload.category,
+    contract_type: requestPayload.contractType || requestPayload.contract_type,
+    deal_value: parseFloat(requestPayload.estimatedValue || requestPayload.dealValue || requestPayload.deal_value || 0),
+    currency: requestPayload.currency || 'USD',
+    pricing_model: requestPayload.pricingModel,
+    target_effective_date: requestPayload.targetEffectiveDate ? new Date(requestPayload.targetEffectiveDate).toISOString() : null,
+    target_delivery_date: requestPayload.targetDeliveryDate ? new Date(requestPayload.targetDeliveryDate).toISOString() : null,
+    deliverables: requestPayload.deliverables || [],
+    tech_dependencies: requestPayload.selectedDependencies || requestPayload.techDependencies || [],
+    custom_terms: requestPayload.customClientTerms || requestPayload.customTerms,
+    require_dependencies: requestPayload.requirePreDraftingSupport !== false,
+    dependencies: (requestPayload.dependencyMatrix || requestPayload.dependencies || []).map(d => ({
+      department: d.department || 'General',
+      assignee_name: d.assigneeName || d.assignee_name,
+      task_objective: d.taskObjective || d.task_objective,
+      sla_deadline: d.slaDeadline || d.sla_deadline,
+      required_inputs: d.requiredInputs || d.required_inputs || []
+    }))
+  };
+
+  const res = await api.post('/api/v1/requests', payload);
+  return res.data;
 };
 
 // Real AI Document Parser for Step 3 of the Wizard (Calls backend Gemini API)

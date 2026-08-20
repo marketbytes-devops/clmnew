@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Request, BackgroundTasks
 from typing import Optional
 import re
 import random
@@ -20,7 +20,11 @@ router = APIRouter(
 )
 
 @router.post("/register/initiate", response_model=schemas.MessageResponse)
-def initiate_registration(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def initiate_registration(
+    user: schemas.UserCreate, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     from sqlalchemy import func
     clean_email = user.email.strip().lower() if user.email else ""
     if not clean_email:
@@ -82,8 +86,8 @@ def initiate_registration(user: schemas.UserCreate, db: Session = Depends(get_db
         
     db.commit()
     
-    # Send email
-    utils.send_otp_email(clean_email, otp_code)
+    # Send email asynchronously
+    background_tasks.add_task(utils.send_otp_email, clean_email, otp_code)
     
     return {"message": "OTP sent to your email. Please verify to complete registration."}
 

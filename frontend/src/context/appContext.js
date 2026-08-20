@@ -95,6 +95,41 @@ export const AppProvider = ({ children }) => {
   const [copilotSuggestions, setCopilotSuggestions] = useState(null);
   const [copilotLoading, setCopilotLoading] = useState(false);
 
+  const normalizeRequest = (r) => {
+    if (!r) return r;
+    const trackingId = r.trackingId || r.tracking_id || r.requestId || `REQ-2026-${r.id || Math.floor(1000 + Math.random() * 9000)}`;
+    const title = r.title || r.requestName || 'Contract Request';
+    const clientName = r.entityName || r.entity_name || r.clientName || 'Client / Beneficiary';
+    const status = r.status || r.currentStatus || (r.isDraft ? 'Draft' : 'Submitted');
+    const category = r.category || r.contractCategory || 'Revenue / Sales';
+    const contractType = r.contractType || r.contract_type || 'Proposal';
+    const createdDate = r.createdAt || r.created_at ? new Date(r.createdAt || r.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const estimatedValue = r.dealValue || r.deal_value || r.estimatedValue || 0;
+
+    return {
+      ...r,
+      id: r.id || Date.now(),
+      requestId: trackingId,
+      trackingId,
+      requestName: title,
+      title,
+      clientName,
+      entityName: clientName,
+      currentStatus: status,
+      status,
+      contractCategory: category,
+      category,
+      contractType,
+      contract_type: contractType,
+      createdDate,
+      createdAt: r.createdAt || r.created_at || createdDate,
+      estimatedValue,
+      dealValue: estimatedValue,
+      deal_value: estimatedValue,
+      dependencies: r.dependencies || []
+    };
+  };
+
   const loadRequestsData = useCallback(async () => {
     try {
       const [requestsRes, metricsRes, notificationsRes] = await Promise.allSettled([
@@ -103,8 +138,9 @@ export const AppProvider = ({ children }) => {
         apiService.getNotifications()
       ]);
 
-      if (requestsRes.status === 'fulfilled' && requestsRes.value) {
-        setContractRequests(requestsRes.value);
+      if (requestsRes.status === 'fulfilled' && Array.isArray(requestsRes.value)) {
+        const normalized = requestsRes.value.map(normalizeRequest);
+        setContractRequests(normalized);
       }
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
         setRequestMetrics(metricsRes.value);
@@ -138,22 +174,22 @@ export const AppProvider = ({ children }) => {
   const submitNewRequest = async (requestPayload, isDraft = false) => {
     try {
       const res = await apiService.createContractRequest({ ...requestPayload, isDraft });
-      if (res) {
-        setContractRequests(prev => [res, ...prev]);
-      }
+      const normalized = normalizeRequest(res || requestPayload);
+      setContractRequests(prev => [normalized, ...prev.filter(p => p.id !== normalized.id)]);
       await loadRequestsData().catch(() => {});
-      return { success: true, trackingId: res?.trackingId || res?.requestId || res?.id || `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}` };
+      return { success: true, trackingId: normalized.trackingId };
     } catch (err) {
-      console.warn('Backend server offline, saving contract request locally:', err);
+      console.warn('Failed to submit request to backend, saving contract request locally:', err);
       const mockId = `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-      const mockReq = {
+      const mockReq = normalizeRequest({
         id: Date.now(),
         requestId: mockId,
         trackingId: mockId,
         ...requestPayload,
-        currentStatus: isDraft ? 'Draft' : 'Submitted / Pending Assignment',
+        status: isDraft ? 'Draft' : 'Submitted',
+        currentStatus: isDraft ? 'Draft' : 'Submitted',
         createdAt: new Date().toISOString()
-      };
+      });
       setContractRequests(prev => [mockReq, ...prev]);
       return { success: true, trackingId: mockId };
     }

@@ -16,6 +16,7 @@ export default function CMDashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [fetchedRequests, setFetchedRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadRequests = async () => {
@@ -32,115 +33,84 @@ export default function CMDashboardPage() {
     loadRequests();
   }, [contextRequests]);
 
-  // Combine live submitted requests with baseline lifecycle samples
+  // Combine live submitted requests from database & context
   const combinedRequestsList = React.useMemo(() => {
     const map = new Map();
     
-    // Add live requests from context & API first
+    // Add live requests from context & API
     const allLive = [...(fetchedRequests || []), ...(contextRequests || [])];
     allLive.forEach(r => {
-      if (r && (r.id || r.tracking_id || r.title || r.requestName)) {
-        const key = r.tracking_id || (r.id ? `REQ-${r.id}` : r.title || r.requestName);
-        if (!map.has(key)) {
-          const valNum = r.deal_value || r.estimatedValue || r.value || 0;
-          map.set(key, {
-            id: key,
-            title: r.title || r.requestName || (r.entity_name ? `${r.entity_name} - ${r.contract_type || 'Request'}` : 'Contract Request'),
-            client: r.entity_name || r.clientName || r.counterparty || r.primary_contact_name || 'Acme Corp',
-            category: r.category || r.contract_type || 'Sales / Proposal',
-            value: typeof valNum === 'number' ? `$${valNum.toLocaleString()}` : String(valNum),
-            stage: r.status === 'Drafting In Progress' ? 'Stage 3: Authoring & Drafting' : (r.status === 'In Review' ? 'Stage 4: Internal Review' : 'Stage 1: Intake & Request'),
-            stageSlug: r.status === 'Drafting In Progress' ? '/cm/drafting' : (r.status === 'In Review' ? '/cm/review' : '/cm/requests'),
-            status: r.status || r.current_status || 'Pending Intake',
+      if (r && (r.id || r.tracking_id || r.trackingId || r.title || r.requestName)) {
+        const trackingId = r.tracking_id || r.trackingId || (r.id ? `REQ-${r.id}` : r.title || r.requestName);
+        const title = r.title || r.requestName || (r.entity_name || r.entityName ? `${r.entity_name || r.entityName} - ${r.contract_type || r.contractType || 'Contract'}` : 'Contract Request');
+        const client = r.entity_name || r.entityName || r.clientName || r.counterparty || r.primary_contact_name || 'Client';
+        const category = r.category || r.contractCategory || r.contract_type || r.contractType || 'Revenue / Sales';
+        const valNum = parseFloat(r.deal_value || r.dealValue || r.estimatedValue || r.value || 0);
+        const status = r.status || r.currentStatus || 'Pending Intake';
+
+        let stage = 'Stage 1: Intake & Request';
+        let stageSlug = '/cm/requests';
+        let badgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
+
+        if (status === 'Dependency Gathering') {
+          stage = 'Stage 2: Dependency Hub';
+          stageSlug = '/cm/requests';
+          badgeColor = 'bg-teal-50 text-teal-700 border-teal-200';
+        } else if (status === 'Drafting In Progress' || status === 'Authoring') {
+          stage = 'Stage 3: Authoring & Drafting';
+          stageSlug = '/cm/drafting';
+          badgeColor = 'bg-blue-50 text-blue-700 border-blue-200';
+        } else if (status === 'Internal Review' || status === 'In Review') {
+          stage = 'Stage 4: Internal Review';
+          stageSlug = '/cm/review';
+          badgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
+        } else if (status === 'Client Negotiation' || status === 'Negotiation') {
+          stage = 'Stage 5: Client Negotiation';
+          stageSlug = '/cm/negotiation';
+          badgeColor = 'bg-purple-50 text-purple-700 border-purple-200';
+        } else if (status === 'Approved' || status === 'Active Vault' || status === 'Executed') {
+          stage = 'Stage 6: Smart Repository';
+          stageSlug = '/cm/repository';
+          badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        }
+
+        if (!map.has(trackingId)) {
+          map.set(trackingId, {
+            id: trackingId,
+            title,
+            client,
+            category,
+            value: valNum > 0 ? `$${valNum.toLocaleString()}` : '$0',
+            valRaw: valNum,
+            stage,
+            stageSlug,
+            status,
             priority: r.priority || 'Medium',
-            manager: r.assigned_to?.full_name || 'Sarah Jenkins',
-            updated: 'Just now',
-            badgeColor: r.status === 'Drafting In Progress' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-[#eaf5ea] text-[#1e5622] border-emerald-200'
+            manager: r.assigned_to?.full_name || r.contractManager || 'Assigned CM',
+            updated: r.created_at || r.createdAt ? new Date(r.created_at || r.createdAt).toLocaleDateString() : 'Recent',
+            badgeColor
           });
         }
       }
     });
 
-    // Add baseline demo samples
-    const sampleData = [
-      {
-        id: 'REQ-2026-0891',
-        title: 'Proposal_E-Commerce_Web_App_v1.0.docx',
-        client: 'Acme Corp',
-        category: 'Sales / Proposal',
-        value: '$22,000',
-        stage: 'Stage 4: Internal Review',
-        stageSlug: '/cm/review',
-        status: 'Internal Review',
-        priority: 'High',
-        manager: 'Sarah Jenkins',
-        updated: '10 mins ago',
-        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
-      },
-      {
-        id: 'REQ-2026-0902',
-        title: 'Global Master Services Agreement (MSA)',
-        client: 'Stark Industries',
-        category: 'Revenue / MSA',
-        value: '$120,000',
-        stage: 'Stage 2: Dependency Hub',
-        stageSlug: '/cm/requests',
-        status: 'Dependency Gathering',
-        priority: 'Urgent',
-        manager: 'Sarah Jenkins',
-        updated: '1 hour ago',
-        badgeColor: 'bg-teal-50 text-teal-700 border-teal-200'
-      },
-      {
-        id: 'REQ-2026-0877',
-        title: 'Cloud Infrastructure Migration SOW v1.1',
-        client: 'Wayne Enterprises',
-        category: 'Statement of Work',
-        value: '$85,000',
-        stage: 'Stage 5: Client Negotiation',
-        stageSlug: '/cm/negotiation',
-        status: 'Client Negotiation',
-        priority: 'High',
-        manager: 'Sarah Jenkins',
-        updated: '3 hours ago',
-        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
-      },
-      {
-        id: 'REQ-2026-0850',
-        title: 'Annual Enterprise SaaS License Agreement',
-        client: 'Cyberdyne Systems',
-        category: 'Software License',
-        value: '$45,000',
-        stage: 'Stage 3: Authoring & Drafting',
-        stageSlug: '/cm/drafting',
-        status: 'Drafting In Progress',
-        priority: 'Medium',
-        manager: 'Sarah Jenkins',
-        updated: 'Yesterday',
-        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
-      },
-      {
-        id: 'CTR-2026-0092',
-        title: 'Digital Experience Platform SOW (Executed)',
-        client: 'TechCorp International',
-        category: 'Executed SOW',
-        value: '$92,000',
-        stage: 'Stage 6: Smart Repository',
-        stageSlug: '/cm/repository',
-        status: 'Active Vault',
-        priority: 'Low',
-        manager: 'Sarah Jenkins',
-        updated: '2 days ago',
-        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-      }
-    ];
-
-    sampleData.forEach(item => {
-      if (!map.has(item.id)) map.set(item.id, item);
-    });
-
     return Array.from(map.values());
   }, [fetchedRequests, contextRequests]);
+
+  // Real KPI Metrics derived from live database records
+  const dynamicMetrics = React.useMemo(() => {
+    const totalVal = combinedRequestsList.reduce((acc, r) => acc + (r.valRaw || 0), 0);
+    const activeCount = combinedRequestsList.filter(r => !['Executed', 'Approved', 'Archived'].includes(r.status)).length;
+    const pendingApprovals = combinedRequestsList.filter(r => ['Internal Review', 'In Review', 'Dependency Gathering', 'Pending Intake'].includes(r.status)).length;
+    const executedCount = combinedRequestsList.filter(r => ['Executed', 'Approved', 'Active Vault'].includes(r.status)).length;
+
+    return {
+      totalValFormatted: totalVal > 1000000 ? `$${(totalVal / 1000000).toFixed(2)}M` : (totalVal > 0 ? `$${totalVal.toLocaleString()}` : '$0.00'),
+      activeCount,
+      pendingApprovals,
+      executedCount
+    };
+  }, [combinedRequestsList]);
 
   const stages = [
     {
@@ -148,7 +118,7 @@ export default function CMDashboardPage() {
       name: 'Intake & Requests',
       desc: 'Capture requirements & assign CM',
       icon: Inbox,
-      count: `${combinedRequestsList.filter(r => r.stage.includes('Intake') || r.stage.includes('Dependency')).length} Requests`,
+      count: `${combinedRequestsList.filter(r => r.stage.includes('Intake')).length} Requests`,
       href: '/cm/requests',
       color: 'from-amber-500/10 to-amber-500/5 text-amber-700 border-amber-200/80',
       iconBg: 'bg-amber-100 text-amber-700'
@@ -158,7 +128,7 @@ export default function CMDashboardPage() {
       name: 'Dependency Hub',
       desc: 'UI/UX, Tech & Ops estimation',
       icon: Cpu,
-      count: '3 Active Hubs',
+      count: `${combinedRequestsList.filter(r => r.stage.includes('Dependency')).length} Active Hubs`,
       href: '/cm/requests',
       color: 'from-teal-500/10 to-teal-500/5 text-teal-700 border-teal-200/80',
       iconBg: 'bg-teal-100 text-teal-700'
@@ -198,7 +168,7 @@ export default function CMDashboardPage() {
       name: 'Smart Repository',
       desc: 'Executed vault & obligations',
       icon: Archive,
-      count: '18 Executed',
+      count: `${combinedRequestsList.filter(r => r.stage.includes('Repository')).length} Executed`,
       href: '/cm/repository',
       color: 'from-indigo-500/10 to-indigo-500/5 text-indigo-700 border-indigo-200/80',
       iconBg: 'bg-indigo-100 text-indigo-700'
@@ -225,7 +195,7 @@ export default function CMDashboardPage() {
             Contract Lifecycle Management • Command Center
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-            Welcome back, {user?.name || 'Sarah Jenkins'}
+            Welcome back, {user?.name || user?.full_name || 'Contract Manager'}
           </h1>
           <p className="text-emerald-100/90 text-sm mt-1.5 leading-relaxed">
             Orchestrate intake requests, synthesize technical dependencies, draft compliant proposals, and monitor post-signature obligations.
@@ -264,9 +234,9 @@ export default function CMDashboardPage() {
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900 tracking-tight">$1.42M</p>
+          <p className="text-2xl font-black text-slate-900 tracking-tight">{dynamicMetrics.totalValFormatted}</p>
           <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
-            <TrendingUp className="w-3.5 h-3.5" /> +18% vs Last Quarter
+            <TrendingUp className="w-3.5 h-3.5" /> Real-time Database Value
           </p>
         </div>
 
@@ -277,9 +247,9 @@ export default function CMDashboardPage() {
               <Layers className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900 tracking-tight">14 Contracts</p>
+          <p className="text-2xl font-black text-slate-900 tracking-tight">{dynamicMetrics.activeCount} Requests</p>
           <p className="text-xs font-medium text-slate-400 mt-1">
-            Avg Velocity: 4.2 Days w/ AI
+            Live lifecycle pipeline
           </p>
         </div>
 
@@ -290,9 +260,9 @@ export default function CMDashboardPage() {
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900 tracking-tight">4 Pending</p>
+          <p className="text-2xl font-black text-slate-900 tracking-tight">{dynamicMetrics.pendingApprovals} Pending</p>
           <p className="text-xs font-semibold text-amber-700 flex items-center gap-1 mt-1">
-            <AlertTriangle className="w-3.5 h-3.5" /> 1 SLA alert (Finance Lead)
+            <AlertTriangle className="w-3.5 h-3.5" /> Department Reviews
           </p>
         </div>
 
@@ -303,9 +273,9 @@ export default function CMDashboardPage() {
               <Archive className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900 tracking-tight">18 Executed</p>
+          <p className="text-2xl font-black text-slate-900 tracking-tight">{dynamicMetrics.executedCount} Executed</p>
           <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
-            <ShieldCheck className="w-3.5 h-3.5" /> 100% Policy Compliance
+            <ShieldCheck className="w-3.5 h-3.5" /> Active Repository
           </p>
         </div>
 
