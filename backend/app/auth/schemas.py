@@ -21,6 +21,7 @@ class AdminUserCreate(UserBase):
     password: Optional[str] = None
     org_id: int
     role_id: Optional[int] = None
+    role: Optional[str] = None
 
 class SetPasswordRequest(BaseModel):
     token: str

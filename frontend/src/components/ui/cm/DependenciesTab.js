@@ -150,22 +150,25 @@ export default function DependenciesTab({ requestId }) {
       )}
 
       {/* Header Row */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-gray-900">Pre-Drafting Dependencies</h2>
-          <div className="h-6 w-px bg-gray-300" />
-          <label className="flex items-center cursor-pointer">
-            <div className="relative">
-              <input type="checkbox" className="sr-only" checked={requireSupport} onChange={() => setRequireSupport(!requireSupport)} />
-              <div className="block bg-emerald-500 w-10 h-6 rounded-full"></div>
-              <div className="dot absolute right-1 top-1 bg-white w-4 h-4 rounded-full transition transform"></div>
-            </div>
-            <span className="ml-3 text-sm font-medium text-gray-700">Require Support?</span>
-          </label>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-gray-900">Contract Manager Dependency Operations</h2>
+            <div className="h-6 w-px bg-gray-300" />
+            <label className="flex items-center cursor-pointer">
+              <div className="relative">
+                <input type="checkbox" className="sr-only" checked={requireSupport} onChange={() => setRequireSupport(!requireSupport)} />
+                <div className="block bg-emerald-500 w-10 h-6 rounded-full"></div>
+                <div className="dot absolute right-1 top-1 bg-white w-4 h-4 rounded-full transition transform"></div>
+              </div>
+              <span className="ml-3 text-sm font-medium text-gray-700">Require Support?</span>
+            </label>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Select required technical & operational dependencies, send contract drafts for evaluation, and gather effort/feasibility data.</p>
         </div>
         
         {isCM && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {selectedIds.length > 0 && (
               <button 
                 onClick={() => setIsDispatchModalOpen(true)}
@@ -179,7 +182,7 @@ export default function DependenciesTab({ requestId }) {
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm transition-colors cursor-pointer"
             >
-              <Plus className="w-4 h-4" /> Add Dependency
+              <Plus className="w-4 h-4" /> Select & Add Dependency
             </button>
           </div>
         )}

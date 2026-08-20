@@ -125,6 +125,8 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 
 app.include_router(departments.router, prefix="/api/v1/departments", tags=["departments"])
 app.include_router(departments.router, prefix="/api/departments", tags=["departments"])
+app.include_router(departments.router, prefix="/api/v1/admin/departments", tags=["departments"])
+app.include_router(departments.router, prefix="/api/admin/departments", tags=["departments"])
 
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])

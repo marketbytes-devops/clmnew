@@ -10,6 +10,24 @@ import { useAppContext } from '../../../context/appContext';
 
 const MODULES = ['Contracts', 'Users', 'Departments', 'Analytics', 'AI', 'Roles'];
 const ACTIONS = ['View', 'Create', 'Edit', 'Delete', 'Approve', 'Reject', 'Archive', 'Restore', 'Export', 'Import', 'Assign'];
+const DEFAULT_ROLES = [
+  'Contract Manager',
+  'Requestor',
+  'Reviewer',
+  'Dependency',
+  'Admin'
+];
+
+const normalizeRoleName = (name) => {
+  if (!name) return 'Requestor';
+  const clean = String(name).trim().replace(/_/g, ' ').toLowerCase();
+  if (clean.includes('manager') || clean.includes('contract')) return 'Contract Manager';
+  if (clean.includes('request') || clean.includes('requester')) return 'Requestor';
+  if (clean.includes('review')) return 'Reviewer';
+  if (clean.includes('depend')) return 'Dependency';
+  if (clean.includes('admin')) return 'Admin';
+  return name;
+};
 
 const getDefaultPermissionsMatrix = () => {
   const matrix = {};
@@ -23,7 +41,7 @@ const getDefaultPermissionsMatrix = () => {
 };
 
 export default function UsersList() {
-  const { users: contextUsers, departments: contextDepartments, addUser, saveUsersLocally } = useAppContext();
+  const { users: contextUsers, departments: contextDepartments, addUser, removeUser, saveUsersLocally } = useAppContext();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -109,18 +127,55 @@ export default function UsersList() {
       const combinedList = Array.from(map.values());
       setUsers(combinedList);
 
-      // Dynamically assemble all available departments
-      const deptsMap = new Map();
-      ['Legal Operations', 'Sales & Commercial', 'Finance & Procurement', 'Software Engineering', 'Human Resources (HR)', 'Executive Management'].forEach(d => deptsMap.set(d.toLowerCase(), d));
-      (deptsData || []).forEach(d => { if (d && d.name) deptsMap.set(d.name.toLowerCase(), d.name); });
-      (contextDepartments || []).forEach(d => { if (d && d.name) deptsMap.set(d.name.toLowerCase(), d.name); });
-      setAvailableDepartments(Array.from(deptsMap.values()));
+      // Dynamically assemble available departments strictly from database
+      const realDepts = [];
+      const deptsSet = new Set();
+      (deptsData || []).forEach(d => {
+        if (d && d.name && !deptsSet.has(d.name.toLowerCase())) {
+          deptsSet.add(d.name.toLowerCase());
+          realDepts.push(d.name);
+        }
+      });
+      (contextDepartments || []).forEach(d => {
+        if (d && d.name && !deptsSet.has(d.name.toLowerCase())) {
+          deptsSet.add(d.name.toLowerCase());
+          realDepts.push(d.name);
+        }
+      });
 
-      // Set fetched roles
-      const fetchedRoles = Array.isArray(rolesData) ? rolesData : [];
-      setRoles(fetchedRoles);
-      if (fetchedRoles.length > 0 && !formData.role_id) {
-        setFormData(prev => ({ ...prev, role_id: fetchedRoles[0].id, role: fetchedRoles[0].name }));
+      if (realDepts.length > 0) {
+        setAvailableDepartments(realDepts);
+      } else {
+        setAvailableDepartments(['Legal Operations', 'Sales Operations', 'Finance & Procurement']);
+      }
+
+      // Set clean deduplicated roles strictly matching the 5 system roles
+      const roleMap = new Map();
+      DEFAULT_ROLES.forEach(rName => {
+        roleMap.set(rName.toLowerCase(), { id: `sys-${rName}`, name: rName });
+      });
+
+      (rolesData || []).forEach(r => {
+        if (r && r.name) {
+          const norm = normalizeRoleName(r.name);
+          if (!roleMap.has(norm.toLowerCase())) {
+            roleMap.set(norm.toLowerCase(), { id: r.id || `sys-${norm}`, name: norm });
+          } else if (typeof r.id === 'number') {
+            roleMap.set(norm.toLowerCase(), { id: r.id, name: norm });
+          }
+        }
+      });
+
+      const cleanRoles = Array.from(roleMap.values());
+      setRoles(cleanRoles);
+
+      if (cleanRoles.length > 0 && !formData.role_id) {
+        const firstWithId = cleanRoles.find(r => typeof r.id === 'number');
+        setFormData(prev => ({ 
+          ...prev, 
+          role_id: firstWithId ? firstWithId.id : '', 
+          role: prev.role || cleanRoles[0].name 
+        }));
       }
 
     } catch (err) {
@@ -184,17 +239,28 @@ export default function UsersList() {
     }
   };
 
-  const handleDeleteUser = async (id) => {
+  const handleDeleteUser = async (id, email) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
     try {
-      await APIService.deleteUser(id).catch(() => null);
-      const updated = users.filter(u => u.id !== id);
+      if (id && typeof id === 'number') {
+        await APIService.deleteUser(id);
+      }
+      const updated = users.filter(u => u.id !== id && u.email !== email);
       setUsers(updated);
       saveUsersLocally(updated);
+      if (removeUser) {
+        if (id) removeUser(id);
+        if (email) removeUser(email);
+      }
     } catch (err) {
-      const updated = users.filter(u => u.id !== id);
+      console.error("Error deleting user:", err);
+      const updated = users.filter(u => u.id !== id && u.email !== email);
       setUsers(updated);
       saveUsersLocally(updated);
+      if (removeUser) {
+        if (id) removeUser(id);
+        if (email) removeUser(email);
+      }
     }
   };
 
@@ -298,7 +364,8 @@ export default function UsersList() {
                 filteredUsers.map((user) => {
                   const displayName = user.fullName || user.full_name || user.name || 'User';
                   const displayAvatar = user.avatarUrl || user.avatar_url || user.profilePictureUrl || user.profile_picture_url;
-                  const displayRole = typeof user.role === 'object' && user.role !== null ? (user.role.name || 'Requester') : (typeof user.role === 'string' ? user.role : 'Requester');
+                  const rawRole = typeof user.role === 'object' && user.role !== null ? user.role.name : (user.roles && user.roles.length > 0 ? (typeof user.roles[0] === 'object' ? user.roles[0].name : user.roles[0]) : (user.role || 'Requestor'));
+                  const displayRole = normalizeRoleName(rawRole);
                   const displayDept = typeof user.department === 'object' && user.department !== null ? (user.department.name || 'General') : (typeof user.department === 'string' ? user.department : 'General');
                   const isActive = user.isActive !== false && user.is_active !== false;
 
@@ -338,7 +405,7 @@ export default function UsersList() {
                       </td>
                       <td className="p-4 text-right">
                         <button 
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => handleDeleteUser(user.id, user.email)}
                           className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                           title="Delete user"
                         >
@@ -643,29 +710,18 @@ export default function UsersList() {
                       value={formData.role}
                       onChange={(e) => {
                         const selectedName = e.target.value;
-                        const selectedRole = roles.find(r => r.name === selectedName);
+                        const selectedRole = roles.find(r => (r.name || '').toLowerCase() === selectedName.toLowerCase());
                         setFormData({ 
                           ...formData, 
                           role: selectedName,
-                          role_id: selectedRole ? selectedRole.id : ''
+                          role_id: selectedRole && typeof selectedRole.id === 'number' ? selectedRole.id : ''
                         });
                       }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-gray-900"
                     >
-                      {roles.length > 0 ? (
-                        roles.map(r => (
-                          <option key={r.id} value={r.name}>{r.name}</option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="Admin">Admin</option>
-                          <option value="Contract Manager">Contract Manager</option>
-                          <option value="Legal Counsel">Legal Counsel</option>
-                          <option value="Approver">Approver</option>
-                          <option value="Requester">Requester</option>
-                          <option value="Viewer">Viewer</option>
-                        </>
-                      )}
+                      {roles.map(r => (
+                        <option key={r.id || r.name} value={r.name}>{r.name}</option>
+                      ))}
                     </select>
                   </div>
 

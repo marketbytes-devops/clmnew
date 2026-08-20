@@ -72,6 +72,8 @@ class UserBase(BaseModel):
     name: Optional[str] = None
     is_active: bool = True
     role_id: Optional[int] = None
+    role: Optional[str] = None
+    org_id: Optional[int] = None
     department_id: Optional[int] = None
     profile_picture_url: Optional[str] = None
 

@@ -15,7 +15,7 @@ export const getUserRole = (user) => {
     roleName = user.role.name || '';
   }
   
-  return (roleName || 'requester').toLowerCase();
+  return (roleName || 'requester').toLowerCase().replace(/_/g, ' ').trim();
 };
 
 export const getRoleRedirectPath = (user) => {
@@ -25,8 +25,10 @@ export const getRoleRedirectPath = (user) => {
     return '/admin';
   } else if (role.includes('reviewer') || role.includes('legal')) {
     return '/reviewer';
-  } else if (role.includes('contract_manager') || role.includes('manager') || role.includes('cm')) {
-    return '/cm/contracts';
+  } else if (role.includes('contract manager') || role.includes('cm') || role.includes('manager')) {
+    return '/cm';
+  } else if (role.includes('dependency') || role.includes('department lead') || role.includes('lead')) {
+    return '/dependency';
   } else {
     return '/requestor';
   }

@@ -50,3 +50,12 @@ def update_department(department_id: int, department_update: DepartmentUpdate, d
     db.commit()
     db.refresh(db_department)
     return db_department
+
+@router.delete("/{department_id}")
+def delete_department(department_id: int, db: Session = Depends(get_db)):
+    db_department = db.query(Department).filter(Department.id == department_id).first()
+    if not db_department:
+        raise HTTPException(status_code=404, detail="Department not found")
+    db.delete(db_department)
+    db.commit()
+    return {"detail": "Department deleted successfully"}
